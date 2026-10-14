@@ -14,11 +14,19 @@ struct NameRow {
     city_count: u32,
 }
 
+#[derive(Serialize)]
+struct RoundResponse {
+    round: u32,
+    name_id: u32,
+    name: String,
+}
+
 fn router(env: Env) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/health", get(health))
         .route("/api/names/{id}", get(get_name))
+        .route("/api/freeplay/round/{n}", get(freeplay_round))
         .layer(Extension(env))
 }
 
@@ -48,18 +56,45 @@ async fn get_name(
         .d1("DB")
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let stmt = db
-        .prepare("SELECT id, name, first_city, city_count FROM names WHERE id = ?1")
-        .bind(&[id.into()])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let row: Option<NameRow> = stmt
-        .first(None)
+    let row = find_name(&db, id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    match row {
-        Some(row) => Ok(Json(row)),
-        None => Err(StatusCode::NOT_FOUND),
-    }
+    row.map(Json).ok_or(StatusCode::NOT_FOUND)
+}
+
+async fn find_name(db: &D1Database, id: u32) -> worker::Result<Option<NameRow>> {
+    db.prepare("SELECT id, name, first_city, city_count FROM names WHERE id = ?1")
+        .bind(&[id.into()])?
+        .first(None)
+        .await
+}
+
+#[worker::send]
+async fn freeplay_round(
+    Extension(env): Extension<Env>,
+    Path(round): Path<u32>,
+) -> std::result::Result<Json<RoundResponse>, StatusCode> {
+    let (min, max) = game::id_range_for_round(round).ok_or(StatusCode::BAD_REQUEST)?;
+    let id = random_id(min, max);
+    let db = env
+        .d1("DB")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let row = find_name(&db, id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(RoundResponse {
+        round,
+        name_id: row.id,
+        name: row.name,
+    }))
+}
+
+fn random_id(min: u32, max: u32) -> u32 {
+    let random_num = js_sys::Math::random();
+    let range = max - min + 1;
+    min + (random_num * range as f64).floor() as u32
 }
