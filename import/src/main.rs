@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::collections::HashMap;
 use std::writeln;
 
 #[derive(Debug)]
@@ -84,7 +84,7 @@ fn main() -> std::io::Result<()> {
     let mut sorted_cities: Vec<(String, Vec<City>)> = city_groups.into_iter().collect();
 
     sorted_cities.sort_by(|a, b| {
-            b.1[0]
+        b.1[0]
             .population
             .cmp(&a.1[0].population)
             .then_with(|| a.0.cmp(&b.0))
@@ -109,7 +109,12 @@ fn main() -> std::io::Result<()> {
         let city_count = list.len() as u32;
         let display_name = list[0].name.clone();
 
-        name_rows.push(NameRow { id: name_id, name: display_name, first_city, city_count });
+        name_rows.push(NameRow {
+            id: name_id,
+            name: display_name,
+            first_city,
+            city_count,
+        });
 
         for city in list {
             city_rows.push((next_city_id, city));
@@ -120,7 +125,10 @@ fn main() -> std::io::Result<()> {
     println!("names: {}, cities: {}", name_rows.len(), city_rows.len());
     println!("last city id: {}", next_city_id - 1);
 
-    if let Some(n) = name_rows.iter().find(|n| n.name.to_lowercase() == "santa cruz") {
+    if let Some(n) = name_rows
+        .iter()
+        .find(|n| n.name.to_lowercase() == "santa cruz")
+    {
         println!("{:?}", n);
         let start = (n.first_city - 1) as usize;
         for (id, c) in &city_rows[start..start + n.city_count as usize] {
@@ -129,24 +137,32 @@ fn main() -> std::io::Result<()> {
     }
 
     let name_values: Vec<String> = name_rows
-    .iter()
-    .map(|n| format!("({}, {}, {}, {})", n.id, sql_str(&n.name), n.first_city, n.city_count))
-    .collect();
+        .iter()
+        .map(|n| {
+            format!(
+                "({}, {}, {}, {})",
+                n.id,
+                sql_str(&n.name),
+                n.first_city,
+                n.city_count
+            )
+        })
+        .collect();
 
     let city_values: Vec<String> = city_rows
-    .iter()
-    .map(|(id, c)| {
-        format!(
-            "({}, {}, {}, {}, {}, {})",
-            id,
-            sql_str(&c.name),
-            c.lat,
-            c.lon,
-            sql_str(&c.country),
-            c.population
-        )
-    })
-    .collect();
+        .iter()
+        .map(|(id, c)| {
+            format!(
+                "({}, {}, {}, {}, {}, {})",
+                id,
+                sql_str(&c.name),
+                c.lat,
+                c.lon,
+                sql_str(&c.country),
+                c.population
+            )
+        })
+        .collect();
 
     std::fs::create_dir_all("out")?;
     write_sql(

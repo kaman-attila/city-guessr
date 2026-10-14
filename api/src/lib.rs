@@ -4,6 +4,8 @@ use serde_json::{json, Value};
 use tower_service::Service;
 use worker::*;
 
+mod game;
+
 fn router() -> Router {
     Router::new()
         .route("/", get(root))
