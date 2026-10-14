@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import MapView from './MapView'
 
 export default function App() {
   const [status, setStatus] = useState('checking...')
@@ -13,5 +14,10 @@ export default function App() {
       .catch(() => setStatus('API error'))
   }, [])
 
-  return <h1>{status}</h1>
+  return (
+  <>
+    <MapView />
+    <div className="hud">{status}</div>
+  </>
+)
 }
