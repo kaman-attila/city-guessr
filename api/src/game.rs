@@ -36,6 +36,14 @@ pub fn id_range_for_round(round: u32) -> Option<(u32, u32)> {
     }
 }
 
+pub fn closest(lat: f64, lon: f64, points: &[(f64, f64)]) -> Option<(usize, f64)> {
+    points
+        .iter()
+        .enumerate()
+        .map(|(i, &(p_lat, p_lon))| (i, distance_in_meters(lat, lon, p_lat, p_lon)))
+        .min_by(|city_a, city_b| city_a.1.total_cmp(&city_b.1))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
