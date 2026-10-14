@@ -1,5 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::collections::HashMap;
+use std::vec;
 
 #[derive(Debug)]
 struct City {
@@ -29,17 +31,25 @@ fn parse_city(line: &str) -> City {
 fn main() -> std::io::Result<()> {
     let file = File::open("data/cities5000.txt")?;
     let reader = BufReader::new(file);
-    let mut cities: Vec<City> = vec![];
 
+    let mut cities: Vec<City> = Vec::new();
     for line in reader.lines() {
-        let line = line?;
-        cities.push(parse_city(&line));
+        let city = parse_city(&line?);
+        if city.feature_code == "PPLX" {
+            continue;
+        }
+        cities.push(city);
     }
+    println!("cities: {}", cities.len());
 
-    println!("total number of cities: {}", cities.len());
-    println!(
-        "first 3 city: {:?}, {:?}, {:?}",
-        cities[0], cities[1], cities[2]
-    );
+    let mut groups: HashMap<String, Vec<City>> = HashMap::new();
+    for city in cities {
+        let key = city.ascii.to_lowercase();
+        groups.entry(key).or_default().push(city);
+    }
+    println!("groups: {}", groups.len());
+
+    
+
     Ok(())
 }
