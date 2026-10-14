@@ -8,8 +8,9 @@ authors = ["Attila Kámán <kmnttl@gmail.com>"]
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = { version = "0.8", features = ['http', 'axum'] }
+worker = { version = "0.8", features = ['http', 'axum', 'd1'] }
 worker-macros = { version = "0.8", features = ['http'] }
 axum = { version = "0.8", default-features = false, features = ["json"] }
 tower-service = "0.3.3"
 serde_json = "1.0.154"
+serde = { version = "1.0.229", features = ["derive"] }

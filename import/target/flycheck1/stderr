@@ -1,4 +1,1 @@
-    Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on package cache
-    Checking import v0.1.0 (C:\Users\kmntt\Documents\city_guessr_git\import)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.24s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
