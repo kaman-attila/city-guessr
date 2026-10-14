@@ -42,14 +42,34 @@ fn main() -> std::io::Result<()> {
     }
     println!("cities: {}", cities.len());
 
-    let mut groups: HashMap<String, Vec<City>> = HashMap::new();
+    let mut city_groups: HashMap<String, Vec<City>> = HashMap::new();
     for city in cities {
         let key = city.ascii.to_lowercase();
-        groups.entry(key).or_default().push(city);
+        city_groups.entry(key).or_default().push(city);
     }
-    println!("groups: {}", groups.len());
+    println!("groups: {}", city_groups.len());
 
-    
+    for list in city_groups.values_mut() {
+        list.sort_by(|city_a, city_b| city_b.population.cmp(&city_a.population));
+    }
+
+    let mut sorted_cities: Vec<(String, Vec<City>)> = city_groups.into_iter().collect();
+
+    sorted_cities.sort_by(|a, b| {
+            b.1[0]
+            .population
+            .cmp(&a.1[0].population)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+
+    for (key, list) in sorted_cities.iter().take(5) {
+        println!(
+            "{} ({key}): {} pop, {} cities",
+            list[0].name,
+            list[0].population,
+            list.len()
+        );
+    }
 
     Ok(())
 }
