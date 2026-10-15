@@ -8,7 +8,7 @@ fn random_uuid() -> worker::Result<String> {
         .ok_or_else(|| worker::Error::RustError("randomUUID returned no string".to_string()))
 }
 
-fn read_guest_id(headers: &HeaderMap) -> Option<String> {
+pub fn read_guest_id(headers: &HeaderMap) -> Option<String> {
     let value = headers.get("cookie")?.to_str().ok()?;
 
     let id = value
@@ -16,8 +16,15 @@ fn read_guest_id(headers: &HeaderMap) -> Option<String> {
         .map(|part| part.trim())
         .find_map(|part| part.strip_prefix("guest_id="))?;
 
-    let valid = id.len() == 36 && id.chars().all(|char| char.is_ascii_hexdigit() || char == '-');
-    if valid { Some(id.to_string()) } else { None }
+    let valid = id.len() == 36
+        && id
+            .chars()
+            .all(|char| char.is_ascii_hexdigit() || char == '-');
+    if valid {
+        Some(id.to_string())
+    } else {
+        None
+    }
 }
 
 fn guest_cookie(id: &str) -> String {

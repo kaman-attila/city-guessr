@@ -5,3 +5,4 @@
 .wrangler/
 import/data/
 import/out/
+.dev.vars

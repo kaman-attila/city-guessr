@@ -1,18 +1,16 @@
 use axum::{
     extract::Path,
-    http::StatusCode,
+    http::{header::SET_COOKIE, HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Extension, Json, Router,
-    http::{header::SET_COOKIE, HeaderMap},
-
 };
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tower_service::Service;
+use wasm_bindgen::JsValue;
 use worker::*;
-use guest::get_or_create_guest;
 
 mod game;
 mod guest;
@@ -20,6 +18,7 @@ mod guest;
 enum AppError {
     BadRequest(&'static str),
     NotFound(&'static str),
+    Conflict(&'static str),
     Internal(String),
 }
 
@@ -30,6 +29,7 @@ impl IntoResponse for AppError {
         let (status, message) = match self {
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
             AppError::Internal(details) => {
                 console_error!("internal error: {details}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "something went wrong")
@@ -83,13 +83,47 @@ struct GuessResponse {
     cities: Vec<CityRow>,
 }
 
+#[derive(Serialize)]
+struct DailyRound {
+    round: u32,
+    name: String,
+}
+
+#[derive(Serialize)]
+struct DailyState {
+    date: String,
+    total: u32,
+    next: Option<DailyRound>,
+}
+
+#[derive(Deserialize)]
+struct PlayRow {
+    round: u32,
+    score: u32,
+}
+
+#[derive(Deserialize)]
+struct DailyGuessRequest {
+    date: String,
+    lat: f64,
+    lon: f64,
+}
+
+#[derive(Serialize)]
+struct DailyGuessResponse {
+    result: GuessResponse,
+    total: u32,
+    next: Option<DailyRound>,
+}
+
 fn router(env: Env) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/names/{id}", get(get_name))
         .route("/api/freeplay/round/{n}", get(freeplay_round))
         .route("/api/guess", post(guess))
-        .route("/api/whoami", get(whoami))
+        .route("/api/daily", post(daily_start))
+        .route("/api/daily/guess", post(daily_guess))
         .layer(Extension(env))
 }
 
@@ -157,37 +191,166 @@ async fn guess(
     Extension(env): Extension<Env>,
     Json(req): Json<GuessRequest>,
 ) -> ApiResult<GuessResponse> {
-    if !(-90.0..=90.0).contains(&req.lat) {
-        return Err(AppError::BadRequest("lat must be between -90 and 90"));
-    }
-    if !(-180.0..=180.0).contains(&req.lon) {
-        return Err(AppError::BadRequest("lon must be between -180 and 180"));
+    validate_coords(req.lat, req.lon)?;
+    let db = env.d1("DB")?;
+    Ok(Json(score_guess(&db, req.name_id, req.lat, req.lon).await?))
+}
+
+#[worker::send]
+async fn daily_start(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+) -> std::result::Result<axum::response::Response, AppError> {
+    let (guest_id, set_cookie) = guest::get_or_create_guest(&headers)?;
+    let player_id = format!("g:{guest_id}");
+    let date = utc_date(0);
+    let db = env.d1("DB")?;
+
+    db.prepare("INSERT INTO daily_plays (player_id, date) VALUES (?1, ?2) ON CONFLICT DO NOTHING")
+        .bind(&[player_id.as_str().into(), date.as_str().into()])?
+        .run()
+        .await?;
+
+    let row: PlayRow = db
+        .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
+        .bind(&[player_id.as_str().into(), date.as_str().into()])?
+        .first(None)
+        .await?
+        .ok_or_else(|| AppError::Internal("daily row missing after insert".to_string()))?;
+
+    let state = if row.round >= 5 {
+        DailyState {
+            date,
+            total: row.score,
+            next: None,
+        }
+    } else {
+        let secret = env.secret("DAILY_SECRET")?.to_string();
+        let ids = game::daily_name_ids(game::daily_seed(&secret, &date));
+        let name = find_name(&db, ids[row.round as usize])
+            .await?
+            .ok_or_else(|| AppError::Internal("daily name id not found".to_string()))?;
+
+        DailyState {
+            date,
+            total: row.score,
+            next: Some(DailyRound {
+                round: row.round + 1,
+                name: name.name,
+            }),
+        }
+    };
+
+    with_cookie(Json(state), set_cookie)
+}
+
+#[worker::send]
+async fn daily_guess(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<DailyGuessRequest>,
+) -> ApiResult<DailyGuessResponse> {
+    validate_coords(req.lat, req.lon)?;
+    let guest_id = guest::read_guest_id(&headers)
+        .ok_or(AppError::BadRequest("start the daily challenge first"))?;
+    let player_id = format!("g:{guest_id}");
+
+    if req.date != utc_date(0) && req.date != utc_date(1) {
+        return Err(AppError::BadRequest("that daily challenge is over"));
     }
 
     let db = env.d1("DB")?;
 
-    let name = find_name(&db, req.name_id)
+    let row: PlayRow = db
+        .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
+        .bind(&[player_id.as_str().into(), req.date.as_str().into()])?
+        .first(None)
+        .await?
+        .ok_or(AppError::NotFound("daily challenge not started"))?;
+    if row.round >= 5 {
+        return Err(AppError::BadRequest("already finished"));
+    }
+
+    let secret = env.secret("DAILY_SECRET")?.to_string();
+    let ids = game::daily_name_ids(game::daily_seed(&secret, &req.date));
+    let result = score_guess(&db, ids[row.round as usize], req.lat, req.lon).await?;
+
+    let updated: PlayRow = db
+        .prepare(
+            "UPDATE daily_plays SET round = round + 1, score = score + ?1 \
+             WHERE player_id = ?2 AND date = ?3 AND round = ?4 \
+             RETURNING round, score",
+        )
+        .bind(&[
+            result.score.into(),
+            player_id.as_str().into(),
+            req.date.as_str().into(),
+            row.round.into(),
+        ])?
+        .first(None)
+        .await?
+        .ok_or(AppError::Conflict("round already answered"))?;
+
+    let next = if updated.round < 5 {
+        let name = find_name(&db, ids[updated.round as usize])
+            .await?
+            .ok_or_else(|| AppError::Internal("daily name id not found".to_string()))?;
+        Some(DailyRound {
+            round: updated.round + 1,
+            name: name.name,
+        })
+    } else {
+        None
+    };
+
+    Ok(Json(DailyGuessResponse {
+        result,
+        total: updated.score,
+        next,
+    }))
+}
+
+async fn score_guess(
+    db: &D1Database,
+    name_id: u32,
+    lat: f64,
+    lon: f64,
+) -> std::result::Result<GuessResponse, AppError> {
+    let name = find_name(db, name_id)
         .await?
         .ok_or(AppError::NotFound("name not found"))?;
-
-    let cities = find_cities(&db, name.first_city, name.city_count).await?;
-
+    let cities = find_cities(db, name.first_city, name.city_count).await?;
     let points: Vec<(f64, f64)> = cities.iter().map(|c| (c.lat, c.lon)).collect();
-    let (closest, distance_m) = game::closest(req.lat, req.lon, &points)
+    let (closest, distance_m) = game::closest(lat, lon, &points)
         .ok_or_else(|| AppError::Internal(format!("name {} has no cities", name.id)))?;
     let score = game::score(distance_m);
-
-    Ok(Json(GuessResponse {
+    Ok(GuessResponse {
         distance_m,
         score,
         closest,
         cities,
-    }))
+    })
 }
 
-async fn whoami(headers: HeaderMap) -> std::result::Result<axum::response::Response, AppError> {
-    let (id, set_cookie) = get_or_create_guest(&headers)?;
-    let mut res = Json(json!({ "guest_id": id })).into_response();
+fn random_id(min: u32, max: u32) -> u32 {
+    let random_num = js_sys::Math::random();
+    let range = max - min + 1;
+    min + (random_num * range as f64).floor() as u32
+}
+
+fn utc_date(days_ago: u32) -> String {
+    let ms = js_sys::Date::now() - days_ago as f64 * 86_400_000.0;
+    let iso: String = js_sys::Date::new(&JsValue::from_f64(ms))
+        .to_iso_string()
+        .into();
+    iso[..10].to_string()
+}
+
+fn with_cookie(
+    body: impl IntoResponse,
+    set_cookie: Option<String>,
+) -> std::result::Result<axum::response::Response, AppError> {
+    let mut res = body.into_response();
     if let Some(cookie) = set_cookie {
         let value = cookie
             .parse()
@@ -197,8 +360,12 @@ async fn whoami(headers: HeaderMap) -> std::result::Result<axum::response::Respo
     Ok(res)
 }
 
-fn random_id(min: u32, max: u32) -> u32 {
-    let random_num = js_sys::Math::random();
-    let range = max - min + 1;
-    min + (random_num * range as f64).floor() as u32
+fn validate_coords(lat: f64, lon: f64) -> std::result::Result<(), AppError> {
+    if !(-90.0..=90.0).contains(&lat) {
+        return Err(AppError::BadRequest("lat must be between -90 and 90"));
+    }
+    if !(-180.0..=180.0).contains(&lon) {
+        return Err(AppError::BadRequest("lon must be between -180 and 180"));
+    }
+    Ok(())
 }
