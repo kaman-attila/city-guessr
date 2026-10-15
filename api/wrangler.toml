@@ -9,3 +9,8 @@ command = "cargo install -q \"worker-build@^0.8\" && worker-build --release"
 binding = "DB"
 database_name = "city-game"
 database_id = "221f05b6-5201-4c7a-a84e-76c94907646f"
+
+[assets]
+directory = "../web/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]

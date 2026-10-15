@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react'
-import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { type LatLon, type GuessResult } from './api'
 import type { FeatureCollection } from 'geojson'
+import * as maplibregl from 'maplibre-gl'
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+
+maplibregl.setWorkerUrl(workerUrl)
 
 type Props = {
   guess: LatLon | null

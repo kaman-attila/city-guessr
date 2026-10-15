@@ -80,7 +80,6 @@ struct GuessResponse {
 
 fn router(env: Env) -> Router {
     Router::new()
-        .route("/", get(root))
         .route("/api/health", get(health))
         .route("/api/names/{id}", get(get_name))
         .route("/api/freeplay/round/{n}", get(freeplay_round))
@@ -95,10 +94,6 @@ async fn fetch(
     _ctx: Context,
 ) -> Result<axum::http::Response<axum::body::Body>> {
     Ok(router(env).call(req).await?)
-}
-
-pub async fn root() -> &'static str {
-    "Hello Axum!"
 }
 
 async fn health() -> Json<Value> {
