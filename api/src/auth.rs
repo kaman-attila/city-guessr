@@ -1,10 +1,25 @@
 use js_sys::{Array, Function, Object, Promise, Reflect, Uint8Array};
 use crate::wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
-
-use crate::util::{random_uuid, to_hex};
+use worker::D1Database;
+use crate::util::{now_secs, sha256_hex, to_hex, random_uuid};
 
 const ITERATIONS: u32 = 100_000;
+const SESSION_SECS: i64 = 30 * 24 * 60 * 60;
+
+pub async fn create_session(db: &D1Database, user_id: u32) -> worker::Result<String> {
+    let token = format!("{}{}", random_uuid()?, random_uuid()?).replace('-', "");
+    let expires_at = now_secs() + SESSION_SECS;
+
+    db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?1, ?2, ?3)")
+        .bind(&[sha256_hex(&token).into(), user_id.into(), (expires_at as f64).into()])?
+        .run()
+        .await?;
+
+    Ok(format!(
+        "session={token}; Path=/; Max-Age={SESSION_SECS}; HttpOnly; Secure; SameSite=Lax"
+    ))
+}
 
 async fn pbkdf2(password: &str, salt: &str, iterations: u32) -> worker::Result<Vec<u8>> {
     let crypto = Reflect::get(&js_sys::global(), &"crypto".into())?;

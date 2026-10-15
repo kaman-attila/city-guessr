@@ -142,6 +142,17 @@ struct HistogramResponse {
     better_than_percent: Option<u32>,
 }
 
+#[derive(Deserialize)]
+struct Credentials {
+    email: String,
+    password: String,
+}
+
+#[derive(Deserialize)]
+struct IdRow {
+    id: u32,
+}
+
 fn router(env: Env) -> Router {
     Router::new()
         .route("/api/health", get(health))
@@ -151,6 +162,7 @@ fn router(env: Env) -> Router {
         .route("/api/daily", post(daily_start))
         .route("/api/daily/guess", post(daily_guess))
         .route("/api/daily/histogram/{date}", get(daily_histogram))
+        .route("/api/register", post(register))
         .layer(Extension(env))
 }
 
@@ -449,6 +461,59 @@ async fn daily_histogram(
         your_score,
         better_than_percent,
     }))
+}
+
+async fn adopt_guest_play(db: &D1Database, headers: &HeaderMap, user_id: u32) -> worker::Result<()> {
+    let Some(guest_id) = guest::read_guest_id(headers) else {
+        return Ok(());
+    };
+    let user_player = format!("u:{user_id}");
+    let guest_player = format!("g:{guest_id}");
+    let date = utc_date(0);
+
+    db.prepare(
+        "UPDATE daily_plays SET player_id = ?1 \
+         WHERE player_id = ?2 AND date = ?3 \
+         AND NOT EXISTS (SELECT 1 FROM daily_plays WHERE player_id = ?1 AND date = ?3)",
+    )
+    .bind(&[user_player.as_str().into(), guest_player.as_str().into(), date.as_str().into()])?
+    .run()
+    .await?;
+    Ok(())
+}
+
+#[worker::send]
+async fn register(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<Credentials>,
+) -> std::result::Result<axum::response::Response, AppError> {
+    let email = req.email.trim().to_lowercase();
+
+    if !email.contains('@') || email.len() > 254 {
+        return Err(AppError::BadRequest("please enter a valid email address"));
+    }
+    let pw_len = req.password.chars().count();
+    if !(8..=128).contains(&pw_len) {
+        return Err(AppError::BadRequest("password must be 8 to 128 characters"));
+    }
+
+    let db = env.d1("DB")?;
+    let pw_hash = auth::hash_password(&req.password).await?;
+
+    let user: IdRow = db
+        .prepare(
+            "INSERT INTO users (email, pw_hash) VALUES (?1, ?2) \
+             ON CONFLICT (email) DO NOTHING RETURNING id",
+        )
+        .bind(&[email.as_str().into(), pw_hash.as_str().into()])?
+        .first(None)
+        .await?
+        .ok_or(AppError::Conflict("email already registered"))?;
+
+    adopt_guest_play(&db, &headers, user.id).await?;
+    let cookie = auth::create_session(&db, user.id).await?;
+    with_cookie(Json(json!({ "email": email })), Some(cookie))
 }
 
 fn random_id(min: u32, max: u32) -> u32 {
