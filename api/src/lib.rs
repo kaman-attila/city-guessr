@@ -132,8 +132,9 @@ struct BucketRow {
 #[derive(Serialize)]
 struct HistogramResponse {
     date: String,
+    your_bucket: Option<u32>,
     bucket_starts: Vec<u32>,
-    counts: Vec<u32>, // one per bucket, zeros included
+    counts: Vec<u32>,
     players: u32,
     your_score: Option<u32>,
     better_than_percent: Option<u32>,
@@ -440,6 +441,7 @@ async fn daily_histogram(
     Ok(Json(HistogramResponse {
         date,
         bucket_starts: game::BUCKET_STARTS.to_vec(),
+        your_bucket: your_score.map(game::bucket_for),
         counts,
         players,
         your_score,
