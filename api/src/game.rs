@@ -125,4 +125,4 @@ mod tests {
     fn daily_seeds_are_different() {
         assert!(daily_seed("s", "2026-10-15") != daily_seed("s", "2026-10-16"));
     }
- }
+}

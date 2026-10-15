@@ -4,13 +4,18 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
     Extension, Json, Router,
+    http::{header::SET_COOKIE, HeaderMap},
+
 };
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tower_service::Service;
 use worker::*;
+use guest::get_or_create_guest;
 
 mod game;
+mod guest;
 
 enum AppError {
     BadRequest(&'static str),
@@ -84,6 +89,7 @@ fn router(env: Env) -> Router {
         .route("/api/names/{id}", get(get_name))
         .route("/api/freeplay/round/{n}", get(freeplay_round))
         .route("/api/guess", post(guess))
+        .route("/api/whoami", get(whoami))
         .layer(Extension(env))
 }
 
@@ -177,6 +183,18 @@ async fn guess(
         closest,
         cities,
     }))
+}
+
+async fn whoami(headers: HeaderMap) -> std::result::Result<axum::response::Response, AppError> {
+    let (id, set_cookie) = get_or_create_guest(&headers)?;
+    let mut res = Json(json!({ "guest_id": id })).into_response();
+    if let Some(cookie) = set_cookie {
+        let value = cookie
+            .parse()
+            .map_err(|_| AppError::Internal("bad cookie value".to_string()))?;
+        res.headers_mut().insert(SET_COOKIE, value);
+    }
+    Ok(res)
 }
 
 fn random_id(min: u32, max: u32) -> u32 {
