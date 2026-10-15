@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import MapView from './MapView'
-import { getRound, submitGuess, type Round, type GuessResult } from './api'
+import { getRound, submitGuess, type GuessResult, type LatLon, type Round } from './api'
 
 const ROUNDS = 5
 
@@ -16,9 +16,11 @@ export default function App() {
   const [state, setState] = useState<GameState>({ phase: 'start' })
   const [roundNumber, setRoundNumber] = useState(1)
   const [total, setTotal] = useState(0)
+  const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
 
   async function startRound(n: number) {
     setState({ phase: 'loading' })
+    setPendingGuess(null)
     try {
       const round = await getRound(n)
       setRoundNumber(n)
@@ -54,6 +56,11 @@ export default function App() {
     }
   }
 
+  function handleMapClick(lat: number, lon: number) {
+    if (state.phase !== 'guessing') return
+    setPendingGuess({ lat, lon })
+  }
+
   function renderHud() {
     switch (state.phase) {
       case 'start':
@@ -68,7 +75,13 @@ export default function App() {
             <p>
               Round {roundNumber}/{ROUNDS}: find <b>{state.round.name}</b>
             </p>
-            <button onClick={() => guess(47.4979, 19.0402)}>Test guess: Budapest</button>
+            <p>Click the map to place your guess</p>
+            <button
+              disabled={!pendingGuess}
+              onClick={() => pendingGuess && guess(pendingGuess.lat, pendingGuess.lon)}
+            >
+              Submit guess
+            </button>
           </>
         )
 
@@ -105,7 +118,7 @@ export default function App() {
 
   return (
     <>
-      <MapView />
+      <MapView guess={pendingGuess} onMapClick={handleMapClick} />
       <div className="hud">{renderHud()}</div>
     </>
   )
