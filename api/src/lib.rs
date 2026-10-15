@@ -14,6 +14,8 @@ use worker::*;
 
 mod game;
 mod guest;
+mod util;
+mod auth;
 
 const GUEST_LIMIT_PER_IP: u32 = 3;
 
