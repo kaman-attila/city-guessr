@@ -15,6 +15,8 @@ use worker::*;
 mod game;
 mod guest;
 
+const GUEST_LIMIT_PER_IP: u32 = 3;
+
 enum AppError {
     BadRequest(&'static str),
     NotFound(&'static str),
@@ -116,6 +118,27 @@ struct DailyGuessResponse {
     next: Option<DailyRound>,
 }
 
+#[derive(Deserialize)]
+struct CountRow {
+    n: u32,
+}
+
+#[derive(Deserialize)]
+struct BucketRow {
+    bucket: u32,
+    count: u32,
+}
+
+#[derive(Serialize)]
+struct HistogramResponse {
+    date: String,
+    bucket_starts: Vec<u32>,
+    counts: Vec<u32>, // one per bucket, zeros included
+    players: u32,
+    your_score: Option<u32>,
+    better_than_percent: Option<u32>,
+}
+
 fn router(env: Env) -> Router {
     Router::new()
         .route("/api/health", get(health))
@@ -124,6 +147,7 @@ fn router(env: Env) -> Router {
         .route("/api/guess", post(guess))
         .route("/api/daily", post(daily_start))
         .route("/api/daily/guess", post(daily_guess))
+        .route("/api/daily/histogram/{date}", get(daily_histogram))
         .layer(Extension(env))
 }
 
@@ -300,6 +324,8 @@ async fn daily_guess(
             name: name.name,
         })
     } else {
+        let ip = guest::ip_hash(&headers, &secret, &req.date);
+        record_finish(&db, &req.date, updated.score, Some(&ip)).await?;
         None
     };
 
@@ -330,6 +356,95 @@ async fn score_guess(
         closest,
         cities,
     })
+}
+
+async fn record_finish(
+    db: &D1Database,
+    date: &str,
+    score: u32,
+    ip_hash: Option<&str>,
+) -> worker::Result<()> {
+    if let Some(ip) = ip_hash {
+        let row: Option<CountRow> = db
+            .prepare(
+                "INSERT INTO guest_ip_counts (date, ip_hash, n) VALUES (?1, ?2, 1) \
+                 ON CONFLICT (date, ip_hash) DO UPDATE SET n = n + 1 \
+                 RETURNING n",
+            )
+            .bind(&[date.into(), ip.into()])?
+            .first(None)
+            .await?;
+        if row.map_or(1, |r| r.n) > GUEST_LIMIT_PER_IP {
+            return Ok(()); // over the limit: not counted
+        }
+    }
+
+    db.prepare(
+        "INSERT INTO daily_hist (date, bucket, count) VALUES (?1, ?2, 1) \
+         ON CONFLICT (date, bucket) DO UPDATE SET count = count + 1",
+    )
+    .bind(&[date.into(), game::bucket_for(score).into()])?
+    .run()
+    .await?;
+
+    Ok(())
+}
+
+#[worker::send]
+async fn daily_histogram(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Path(date): Path<String>,
+) -> ApiResult<HistogramResponse> {
+    if date.len() != 10 {
+        return Err(AppError::BadRequest("date must look like 2026-10-15"));
+    }
+    let db = env.d1("DB")?;
+
+    let rows: Vec<BucketRow> = db
+        .prepare("SELECT bucket, count FROM daily_hist WHERE date = ?1")
+        .bind(&[date.as_str().into()])?
+        .all()
+        .await?
+        .results()?;
+
+    let mut counts = vec![0u32; game::BUCKET_STARTS.len()];
+    for r in &rows {
+        if let Some(c) = counts.get_mut(r.bucket as usize) {
+            *c = r.count;
+        }
+    }
+    let players: u32 = counts.iter().sum();
+
+    // Your own score, if you have finished this date's challenge
+    let mut your_score = None;
+    if let Some(guest_id) = guest::read_guest_id(&headers) {
+        let player_id = format!("g:{guest_id}");
+        let row: Option<PlayRow> = db
+            .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
+            .bind(&[player_id.as_str().into(), date.as_str().into()])?
+            .first(None)
+            .await?;
+        your_score = row.filter(|r| r.round >= 5).map(|r| r.score);
+    }
+
+    let better_than_percent = match your_score {
+        Some(score) if players > 0 => {
+            let your_bucket = game::bucket_for(score) as usize;
+            let below: u32 = counts[..your_bucket].iter().sum();
+            Some(below * 100 / players)
+        }
+        _ => None,
+    };
+
+    Ok(Json(HistogramResponse {
+        date,
+        bucket_starts: game::BUCKET_STARTS.to_vec(),
+        counts,
+        players,
+        your_score,
+        better_than_percent,
+    }))
 }
 
 fn random_id(min: u32, max: u32) -> u32 {

@@ -1,4 +1,5 @@
 use axum::http::HeaderMap;
+use sha2::{Digest, Sha256};
 
 fn random_uuid() -> worker::Result<String> {
     let crypto = js_sys::Reflect::get(&js_sys::global(), &"crypto".into())?;
@@ -40,4 +41,13 @@ pub fn get_or_create_guest(headers: &HeaderMap) -> worker::Result<(String, Optio
             Ok((id, Some(cookie)))
         }
     }
+}
+
+pub fn ip_hash(headers: &HeaderMap, secret: &str, date: &str) -> String {
+    let ip = headers
+        .get("cf-connecting-ip")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown");
+    let hash = Sha256::digest(format!("{secret}:{date}:{ip}"));
+    hash.iter().map(|b| format!("{b:02x}")).collect()
 }

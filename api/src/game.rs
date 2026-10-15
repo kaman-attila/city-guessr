@@ -5,6 +5,10 @@ const MAX_POINTS: f64 = 1000.0;
 const FULL_POINTS_RADIUS_IN_METERS: f64 = 300.0;
 const DECAY_IN_METERS: f64 = 1500000.0;
 pub const TOTAL_NAMES: u32 = 59383;
+pub const BUCKET_STARTS: [u32; 23] = [
+    0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4250, 4500, 4600,
+    4700, 4800, 4850, 4900, 4925, 4950, 4960, 4970, 4980, 4990, 5000,
+];
 
 pub struct SplitMix64(u64);
 
@@ -78,6 +82,18 @@ pub fn daily_name_ids(seed: u64) -> [u32; 5] {
         ids[round as usize - 1] = id;
     }
     ids
+}
+
+pub fn bucket_for(score: u32) -> u32 {
+    let mut result = 0;
+    for (i, &start) in BUCKET_STARTS.iter().enumerate() {
+        if start <= score {
+            result = i;
+        } else {
+            break;
+        }
+    }
+    result as u32
 }
 
 #[cfg(test)]
