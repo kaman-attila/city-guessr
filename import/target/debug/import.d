@@ -1,1 +1,1 @@
-C:\Users\kmntt\Documents\city_guessr_git\import\target\debug\import.exe: C:\Users\kmntt\Documents\city_guessr_git\import\src\main.rs
+C:\Users\Attila\Documents\CityGuessr\import\target\debug\import.exe: C:\Users\Attila\Documents\CityGuessr\import\src\main.rs

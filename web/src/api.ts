@@ -1,3 +1,5 @@
+export type LatLon = { lat: number; lon: number }
+
 export type Round = {
   round: number
   name_id: number

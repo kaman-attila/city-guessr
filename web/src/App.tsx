@@ -85,16 +85,20 @@ export default function App() {
           </>
         )
 
-      case 'result':
+      case 'result': {
+        const nearest = state.result.cities[state.result.closest]
+        const count = state.result.cities.length
         return (
           <>
             <p>
-              {(state.result.distance_m / 1000).toFixed(1)} km from <b>{state.round.name}</b>:{' '}
-              {state.result.score} points
+              {(state.result.distance_m / 1000).toFixed(1)} km from <b>{nearest.name}</b> (
+              {nearest.country}): {state.result.score} points
             </p>
+            {count > 1 && <p>{count} places have this name</p>}
             <button onClick={next}>{roundNumber < ROUNDS ? 'Next' : 'See total'}</button>
           </>
         )
+      }
 
       case 'finished':
         return (
@@ -118,7 +122,11 @@ export default function App() {
 
   return (
     <>
-      <MapView guess={pendingGuess} onMapClick={handleMapClick} />
+      <MapView
+        guess={pendingGuess}
+        onMapClick={handleMapClick}
+        result={state.phase === 'result' ? state.result : null}
+      />
       <div className="hud">{renderHud()}</div>
     </>
   )
