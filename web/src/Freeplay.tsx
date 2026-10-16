@@ -1,10 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import MapView from './MapView'
 import { getRound, submitGuess, type GuessResult, type LatLon, type Round, type Units } from './api'
-import { formatDistance } from './settings'
 import TopBar, { RoundDots } from './TopBar'
 import { InfinityIcon, PlayIcon, ReplayIcon } from './icons'
-import { CityHeading, MapHint, GuessControls, CenterCard } from './GameParts'
+import { CityHeading, MapHint, GuessControls, CenterCard, ResultLegend, ResultPanel} from './GameParts'
 
 const ROUNDS = 5
 
@@ -89,6 +88,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
             </button>
           </>
         )
+
       case 'finished':
         return (
           <>
@@ -124,27 +124,24 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
 
   return (
     <div className="screen">
-      <TopBar
+      <TopBar 
         onHome={onExit}
         center={
-          inGame ? (
+        inGame ? (
             <RoundDots round={roundNumber} total={ROUNDS} answered={state.phase === 'result'} />
           ) : null
         }
         score={inGame ? total : null}
-        account={account}
-      />
+        account={account} />
       <main className="stage">
-        <CityHeading
-          kicker={state.phase === 'result' ? 'Freeplay · you found' : 'Freeplay · find'}
-          name={cityName}
-        />
+        <CityHeading kicker={state.phase === 'result' ? 'Freeplay · you found' : 'Freeplay · find'} name={cityName} />
         <div className="map-card">
-          <MapView
+          <MapView 
             guess={pendingGuess}
             result={state.phase === 'result' ? state.result : null}
             onMapClick={handleMapClick}
             dark={dark}
+            units={units}
           />
           {state.phase === 'guessing' && !pendingGuess && <MapHint />}
           {state.phase === 'guessing' && (
@@ -155,22 +152,16 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
             />
           )}
           {state.phase === 'result' && (
-            <div className="hud">
-              {state.phase === 'result' && (
-                <div className="hud">
-                  <p>
-                    {formatDistance(state.result.distance_m, units)} from{' '}
-                    <b>{state.result.cities[state.result.closest].name}</b> (
-                    {state.result.cities[state.result.closest].country}): {state.result.score}{' '}
-                    points
-                  </p>
-                  {state.result.cities.length > 1 && (
-                    <p>{state.result.cities.length} places have this name</p>
-                  )}
-                  <button onClick={next}>{roundNumber < ROUNDS ? 'Next' : 'See total'}</button>
-                </div>
-              )}
-            </div>
+            <>
+              <ResultLegend sameName={state.result.cities.length > 1} />
+              <ResultPanel
+                result={state.result}
+                units={units}
+                placeName={state.round.name}
+                nextLabel={'Next round'}
+                onNext={next}
+              />
+            </>
           )}
           {overlay && <CenterCard>{overlay}</CenterCard>}
         </div>

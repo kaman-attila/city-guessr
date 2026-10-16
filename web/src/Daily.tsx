@@ -11,9 +11,15 @@ import {
   type LatLon,
   type Units,
 } from './api'
-import { formatDistance } from './settings'
 import TopBar, { RoundDots } from './TopBar'
-import { CityHeading, CenterCard, GuessControls, MapHint } from './GameParts'
+import {
+  CityHeading,
+  MapHint,
+  GuessControls,
+  CenterCard,
+  ResultLegend,
+  ResultPanel,
+} from './GameParts'
 import { CalendarIcon, HomeIcon, PlayIcon } from './icons'
 
 const ROUNDS = 5
@@ -179,6 +185,7 @@ export default function Daily({ units, dark, account, onExit, onFinished }: Prop
             result={state.phase === 'result' ? state.result : null}
             onMapClick={handleMapClick}
             dark={dark}
+            units={units}
           />
           {state.phase === 'guessing' && !pendingGuess && <MapHint />}
           {state.phase === 'guessing' && (
@@ -189,14 +196,16 @@ export default function Daily({ units, dark, account, onExit, onFinished }: Prop
             />
           )}
           {state.phase === 'result' && (
-            <div className="hud">
-              <p>
-                {formatDistance(state.result.distance_m, units)} from{' '}
-                <b>{state.result.cities[state.result.closest].name}</b> (
-                {state.result.cities[state.result.closest].country}): {state.result.score} points
-              </p>
-              <button onClick={next}>{state.next ? 'Next' : 'See results'}</button>
-            </div>
+            <>
+              <ResultLegend sameName={state.result.cities.length > 1} />
+              <ResultPanel
+                result={state.result}
+                units={units}
+                placeName={state.round.name}
+                nextLabel={'Next Round'}
+                onNext={next}
+              />
+            </>
           )}
           {overlay && <CenterCard>{overlay}</CenterCard>}
         </div>

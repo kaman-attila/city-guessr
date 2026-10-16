@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { type LatLon, type GuessResult } from './api'
+import { type LatLon, type GuessResult, type Units } from './api'
 import type { FeatureCollection } from 'geojson'
 import * as maplibregl from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { MinusIcon, PlusIcon } from './icons'
+import { formatDistance } from './settings'
 import './MapView.css'
 
 maplibregl.setWorkerUrl(workerUrl)
@@ -14,6 +15,7 @@ type Props = {
   onMapClick: (lat: number, lon: number) => void
   result: GuessResult | null
   dark: boolean
+  units: Units
 }
 
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -33,7 +35,8 @@ function addGuessLine(map: maplibregl.Map) {
     id: 'guess-line',
     type: 'line',
     source: 'guess-line',
-    paint: { 'line-color': '#e11d48', 'line-width': 2, 'line-dasharray': [2, 2] },
+    layout: { 'line-cap': 'round' },
+    paint: { 'line-color': '#ff6b57', 'line-width': 3, 'line-dasharray': [2, 2] },
   })
 }
 
@@ -47,7 +50,20 @@ function pinElement(): HTMLElement {
   return el
 }
 
-export default function MapView({ guess, onMapClick, result, dark }: Props) {
+function cityDotElement(nearest: boolean): HTMLElement {
+  const el = document.createElement('div')
+  el.className = nearest ? 'city-dot city-dot-nearest' : 'city-dot'
+  return el
+}
+
+function labelElement(text: string): HTMLElement {
+  const el = document.createElement('div')
+  el.className = 'line-label'
+  el.textContent = text
+  return el
+}
+
+export default function MapView({ guess, onMapClick, result, dark, units }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
@@ -89,6 +105,8 @@ export default function MapView({ guess, onMapClick, result, dark }: Props) {
     return () => {
       markerRef.current?.remove()
       markerRef.current = null
+      cityMarkersRef.current.forEach((m) => m.remove())
+      cityMarkersRef.current = []
       map.remove()
       mapRef.current = null
     }
@@ -125,10 +143,9 @@ export default function MapView({ guess, onMapClick, result, dark }: Props) {
     if (!result || !guess) return
 
     result.cities.forEach((city, i) => {
-      const color = i === result.closest ? '#16a34a' : '#64748b'
-      const marker = new maplibregl.Marker({ color })
+      const marker = new maplibregl.Marker({ element: cityDotElement(i === result.closest) })
         .setLngLat([unwrapLon(city.lon, guess.lon), city.lat])
-        .setPopup(new maplibregl.Popup({ offset: 25 }).setText(`${city.name}, ${city.country}`))
+        .setPopup(new maplibregl.Popup({ offset: 18 }).setText(`${city.name}, ${city.country}`))
         .addTo(map)
       cityMarkersRef.current.push(marker)
     })
@@ -148,11 +165,23 @@ export default function MapView({ guess, onMapClick, result, dark }: Props) {
       },
     })
 
+    const label = new maplibregl.Marker({
+      element: labelElement(formatDistance(result.distance_m, units)),
+    })
+      .setLngLat([(guess.lon + nearestLon) / 2, (guess.lat + nearest.lat) / 2])
+      .addTo(map)
+    cityMarkersRef.current.push(label)
+
+    const wide = map.getContainer().clientWidth > 760
+    const padding = wide
+      ? { top: 90, right: 90, bottom: 90, left: 410 }
+      : { top: 70, right: 40, bottom: 300, left: 40 }
+
     const bounds = new maplibregl.LngLatBounds()
     bounds.extend([guess.lon, guess.lat])
     bounds.extend([nearestLon, nearest.lat])
-    map.fitBounds(bounds, { padding: 80, maxZoom: 10 })
-  }, [result, guess])
+    map.fitBounds(bounds, { padding, maxZoom: 10 })
+  }, [result, guess, units])
 
   return (
     <div className={result ? 'map-view' : 'map-view guessing'}>

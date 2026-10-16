@@ -1,6 +1,16 @@
 import type { ReactNode } from 'react'
-import { CheckIcon, CloseIcon, PinIcon } from './icons'
+import { ArrowRightIcon, CheckIcon, CloseIcon, PinIcon } from './icons'
+import { formatDistance } from './settings'
+import { type GuessResult, type Units } from './api'
 import './Game.css'
+
+type ResultPanelProps = {
+  result: GuessResult
+  units: Units
+  placeName: string
+  nextLabel: string
+  onNext: () => void
+}
 
 export function CityHeading({ kicker, name }: { kicker: string; name: string | null }) {
   return (
@@ -46,6 +56,66 @@ export function CenterCard({ children }: { children: ReactNode }) {
   return (
     <div className="center-card-backdrop">
       <div className="center-card">{children}</div>
+    </div>
+  )
+}
+
+export function ResultPanel({ result, units, placeName, nextLabel, onNext }: ResultPanelProps) {
+  const nearest = result.cities[result.closest]
+  const count = result.cities.length
+
+  return (
+    <div className="result-panel">
+      <div className="result-top">
+        <div>
+          <div className="display result-points">+{result.score}</div>
+          <div className="label result-points-label">Points this round</div>
+        </div>
+        <button className="fab fab-sm" aria-label={nextLabel} onClick={onNext}>
+          <ArrowRightIcon size={28} strokeWidth={2.8} />
+        </button>
+      </div>
+
+      <div className="meter result-meter">
+        <div style={{ width: `${result.score / 10}%` }} />
+      </div>
+
+      <div className="result-distance">
+        <span className="mono">{formatDistance(result.distance_m, units)}</span>
+        <span>
+          from {nearest.name}, {nearest.country}
+        </span>
+      </div>
+
+      {count > 1 && (
+        <div className="result-note">
+          <span className="legend-dot other" aria-hidden="true" />
+          <span>
+            {count} places are called {placeName}. The nearest one counts.
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function ResultLegend({ sameName }: { sameName: boolean }) {
+  return (
+    <div className="map-legend" aria-hidden="true">
+      <span className="legend-chip">
+        <PinIcon size={16} className="pin-accent" />
+        Your pin
+      </span>
+      <span className="legend-chip">
+        <span className="legend-dot nearest" />
+        Nearest
+      </span>
+      {sameName && (
+        <span className="legend-chip">
+          <span className="legend-dot other" />
+          Same name
+        </span>
+      )}
     </div>
   )
 }

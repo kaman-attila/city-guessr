@@ -135,3 +135,146 @@
   color: var(--muted);
   letter-spacing: 0;
 }
+
+.result-panel {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 2;
+  width: 350px;
+  max-width: calc(100% - 36px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  animation: panel-up 0.25s ease-out;
+}
+
+@keyframes panel-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.result-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.result-points {
+  font-size: 52px;
+  line-height: 1;
+  color: var(--accent-text);
+}
+
+.result-points-label {
+  margin-top: 8px;
+}
+
+.fab-sm {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 6px var(--accent-soft);
+}
+
+.result-meter {
+  height: 10px;
+}
+
+.result-meter > div {
+  animation: meter-fill 0.7s ease-out;
+}
+
+@keyframes meter-fill {
+  from {
+    width: 0;
+  }
+}
+
+.result-distance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.result-distance .mono {
+  font-size: 22px;
+}
+
+.result-distance span:last-child {
+  color: var(--muted);
+}
+
+.result-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--surface2);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.map-legend {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  right: 90px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.legend-dot.nearest {
+  background: var(--sun);
+}
+
+.legend-dot.other {
+  background: var(--bar);
+}
+
+@media (max-width: 760px) {
+  .result-panel {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-width: none;
+  }
+
+  .result-points {
+    font-size: 40px;
+  }
+}
