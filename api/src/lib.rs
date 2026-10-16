@@ -12,8 +12,6 @@ use tower_service::Service;
 use wasm_bindgen::JsValue;
 use worker::*;
 
-use crate::auth::verify_password;
-
 mod auth;
 mod game;
 mod guest;
@@ -50,6 +48,20 @@ impl IntoResponse for AppError {
 impl From<worker::Error> for AppError {
     fn from(e: worker::Error) -> Self {
         AppError::Internal(e.to_string())
+    }
+}
+
+enum Player {
+    User(u32),
+    Guest(String),
+}
+
+impl Player {
+    fn key(&self) -> String {
+        match self {
+            Player::User(id) => format!("u:{id}"),
+            Player::Guest(id) => format!("g:{id}"),
+        }
     }
 }
 
@@ -253,10 +265,17 @@ async fn daily_start(
     Extension(env): Extension<Env>,
     headers: HeaderMap,
 ) -> std::result::Result<axum::response::Response, AppError> {
-    let (guest_id, set_cookie) = guest::get_or_create_guest(&headers)?;
-    let player_id = format!("g:{guest_id}");
-    let date = utc_date(0);
     let db = env.d1("DB")?;
+    let date = utc_date(0);
+
+    let (player, set_cookie) = match current_player(&db, &headers).await? {
+        Some(p) => (p, None),
+        None => {
+            let (id, cookie) = guest::get_or_create_guest(&headers)?;
+            (Player::Guest(id), cookie)
+        }
+    };
+    let player_id = player.key();
 
     db.prepare("INSERT INTO daily_plays (player_id, date) VALUES (?1, ?2) ON CONFLICT DO NOTHING")
         .bind(&[player_id.as_str().into(), date.as_str().into()])?
@@ -313,6 +332,11 @@ async fn daily_guess(
 
     let db = env.d1("DB")?;
 
+    let player = current_player(&db, &headers)
+        .await?
+        .ok_or(AppError::BadRequest("start the daily challenge first"))?;
+    let player_id = player.key();
+
     let row: PlayRow = db
         .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
         .bind(&[player_id.as_str().into(), req.date.as_str().into()])?
@@ -352,8 +376,16 @@ async fn daily_guess(
             name: name.name,
         })
     } else {
-        let ip = guest::ip_hash(&headers, &secret, &req.date);
-        record_finish(&db, &req.date, updated.score, Some(&ip)).await?;
+        match &player {
+            Player::User(user_id) => {
+                record_finish(&db, &req.date, updated.score, None).await?;
+                update_best(&db, *user_id, updated.score).await?;
+            }
+            Player::Guest(_) => {
+                let ip = guest::ip_hash(&headers, &secret, &req.date);
+                record_finish(&db, &req.date, updated.score, Some(&ip)).await?;
+            }
+        }
         None
     };
 
@@ -403,7 +435,7 @@ async fn record_finish(
             .first(None)
             .await?;
         if row.map_or(1, |r| r.n) > GUEST_LIMIT_PER_IP {
-            return Ok(()); // over the limit: not counted
+            return Ok(());
         }
     }
 
@@ -444,7 +476,6 @@ async fn daily_histogram(
     }
     let players: u32 = counts.iter().sum();
 
-    // Your own score, if you have finished this date's challenge
     let mut your_score = None;
     if let Some(guest_id) = guest::read_guest_id(&headers) {
         let player_id = format!("g:{guest_id}");
@@ -488,18 +519,25 @@ async fn adopt_guest_play(
     let guest_player = format!("g:{guest_id}");
     let date = utc_date(0);
 
-    db.prepare(
-        "UPDATE daily_plays SET player_id = ?1 \
+    let moved: Option<PlayRow> = db
+        .prepare(
+            "UPDATE daily_plays SET player_id = ?1 \
          WHERE player_id = ?2 AND date = ?3 \
          AND NOT EXISTS (SELECT 1 FROM daily_plays WHERE player_id = ?1 AND date = ?3)",
-    )
-    .bind(&[
-        user_player.as_str().into(),
-        guest_player.as_str().into(),
-        date.as_str().into(),
-    ])?
-    .run()
-    .await?;
+        )
+        .bind(&[
+            user_player.as_str().into(),
+            guest_player.as_str().into(),
+            date.as_str().into(),
+        ])?
+        .first::<PlayRow>(None)
+        .await?;
+
+    if let Some(play) = moved {
+        if play.round >= 5 {
+            update_best(db, user_id, play.score).await?;
+        }
+    }
     Ok(())
 }
 
@@ -594,6 +632,21 @@ async fn me(Extension(env): Extension<Env>, headers: HeaderMap) -> ApiResult<ser
         .await?
         .ok_or(AppError::Unauthorized("not logged in"))?;
     Ok(Json(json!({ "user_id": user_id })))
+}
+
+async fn current_player(db: &D1Database, headers: &HeaderMap) -> worker::Result<Option<Player>> {
+    if let Some(user_id) = auth::current_user_id(db, headers).await? {
+        return Ok(Some(Player::User(user_id)));
+    }
+    Ok(guest::read_guest_id(headers).map(Player::Guest))
+}
+
+async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Result<()> {
+    db.prepare("UPDATE users SET best_score = ?1 WHERE id = ?2 AND best_score < ?1")
+        .bind(&[score.into(), user_id.into()])?
+        .run()
+        .await?;
+    Ok(())
 }
 
 fn random_id(min: u32, max: u32) -> u32 {
