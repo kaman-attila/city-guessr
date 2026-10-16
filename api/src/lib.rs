@@ -12,10 +12,12 @@ use tower_service::Service;
 use wasm_bindgen::JsValue;
 use worker::*;
 
+use crate::auth::verify_password;
+
+mod auth;
 mod game;
 mod guest;
 mod util;
-mod auth;
 
 const GUEST_LIMIT_PER_IP: u32 = 3;
 
@@ -23,6 +25,7 @@ enum AppError {
     BadRequest(&'static str),
     NotFound(&'static str),
     Conflict(&'static str),
+    Unauthorized(&'static str),
     Internal(String),
 }
 
@@ -34,6 +37,7 @@ impl IntoResponse for AppError {
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
+            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             AppError::Internal(details) => {
                 console_error!("internal error: {details}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "something went wrong")
@@ -153,6 +157,12 @@ struct IdRow {
     id: u32,
 }
 
+#[derive(Deserialize)]
+struct LoginRow {
+    id: u32,
+    pw_hash: String,
+}
+
 fn router(env: Env) -> Router {
     Router::new()
         .route("/api/health", get(health))
@@ -163,6 +173,9 @@ fn router(env: Env) -> Router {
         .route("/api/daily/guess", post(daily_guess))
         .route("/api/daily/histogram/{date}", get(daily_histogram))
         .route("/api/register", post(register))
+        .route("/api/login", post(login))
+        .route("/api/logout", post(logout))
+        .route("/api/me", get(me))
         .layer(Extension(env))
 }
 
@@ -463,7 +476,11 @@ async fn daily_histogram(
     }))
 }
 
-async fn adopt_guest_play(db: &D1Database, headers: &HeaderMap, user_id: u32) -> worker::Result<()> {
+async fn adopt_guest_play(
+    db: &D1Database,
+    headers: &HeaderMap,
+    user_id: u32,
+) -> worker::Result<()> {
     let Some(guest_id) = guest::read_guest_id(headers) else {
         return Ok(());
     };
@@ -476,7 +493,11 @@ async fn adopt_guest_play(db: &D1Database, headers: &HeaderMap, user_id: u32) ->
          WHERE player_id = ?2 AND date = ?3 \
          AND NOT EXISTS (SELECT 1 FROM daily_plays WHERE player_id = ?1 AND date = ?3)",
     )
-    .bind(&[user_player.as_str().into(), guest_player.as_str().into(), date.as_str().into()])?
+    .bind(&[
+        user_player.as_str().into(),
+        guest_player.as_str().into(),
+        date.as_str().into(),
+    ])?
     .run()
     .await?;
     Ok(())
@@ -514,6 +535,65 @@ async fn register(
     adopt_guest_play(&db, &headers, user.id).await?;
     let cookie = auth::create_session(&db, user.id).await?;
     with_cookie(Json(json!({ "email": email })), Some(cookie))
+}
+
+#[worker::send]
+async fn login(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<Credentials>,
+) -> std::result::Result<axum::response::Response, AppError> {
+    const WRONG: AppError = AppError::Unauthorized("wrong email or password");
+
+    let email = req.email.trim().to_lowercase();
+    if req.password.chars().count() > 128 {
+        return Err(WRONG);
+    }
+    let db = env.d1("DB")?;
+
+    let row: Option<LoginRow> = db
+        .prepare("SELECT id, pw_hash FROM users WHERE email = ?1")
+        .bind(&[email.as_str().into()])?
+        .first(None)
+        .await?;
+
+    let Some(user) = row else {
+        auth::verify_password(&req.password, auth::DUMMY_HASH).await?;
+        return Err(WRONG);
+    };
+
+    if !auth::verify_password(&req.password, &user.pw_hash).await? {
+        return Err(WRONG);
+    }
+
+    adopt_guest_play(&db, &headers, user.id).await?;
+    let cookie = auth::create_session(&db, user.id).await?;
+    with_cookie(Json(json!({ "email": email })), Some(cookie))
+}
+
+#[worker::send]
+async fn logout(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+) -> std::result::Result<axum::response::Response, AppError> {
+    if let Some(token) = util::read_cookie(&headers, "session") {
+        let db = env.d1("DB")?;
+        db.prepare("DELETE FROM sessions WHERE token_hash = ?1")
+            .bind(&[util::sha256_hex(&token).into()])?
+            .run()
+            .await?;
+    }
+    let clear = "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax".to_string();
+    with_cookie(Json(json!({ "ok": true })), Some(clear))
+}
+
+#[worker::send]
+async fn me(Extension(env): Extension<Env>, headers: HeaderMap) -> ApiResult<serde_json::Value> {
+    let db = env.d1("DB")?;
+    let user_id = auth::current_user_id(&db, &headers)
+        .await?
+        .ok_or(AppError::Unauthorized("not logged in"))?;
+    Ok(Json(json!({ "user_id": user_id })))
 }
 
 fn random_id(min: u32, max: u32) -> u32 {

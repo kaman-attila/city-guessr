@@ -1,14 +1,8 @@
+use crate::util::{random_uuid, read_cookie, sha256_hex};
 use axum::http::HeaderMap;
-use crate::util::{random_uuid, sha256_hex};
 
 pub fn read_guest_id(headers: &HeaderMap) -> Option<String> {
-    let value = headers.get("cookie")?.to_str().ok()?;
-
-    let id = value
-        .split(';')
-        .map(|part| part.trim())
-        .find_map(|part| part.strip_prefix("guest_id="))?;
-
+    let id = read_cookie(headers, "guest_id")?;
     let valid = id.len() == 36
         && id
             .chars()

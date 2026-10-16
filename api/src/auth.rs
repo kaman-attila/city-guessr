@@ -1,18 +1,26 @@
-use js_sys::{Array, Function, Object, Promise, Reflect, Uint8Array};
+use crate::util::{now_secs, random_uuid, read_cookie, sha256_hex, to_hex};
 use crate::wasm_bindgen::JsValue;
+use axum::http::HeaderMap;
+use js_sys::{Array, Function, Object, Promise, Reflect, Uint8Array};
+use serde::Deserialize;
 use wasm_bindgen_futures::JsFuture;
 use worker::D1Database;
-use crate::util::{now_secs, sha256_hex, to_hex, random_uuid};
 
 const ITERATIONS: u32 = 100_000;
 const SESSION_SECS: i64 = 30 * 24 * 60 * 60;
+pub const DUMMY_HASH: &str = "pbkdf2$100000$00000000-0000-0000-0000-000000000000$\
+0000000000000000000000000000000000000000000000000000000000000000";
 
 pub async fn create_session(db: &D1Database, user_id: u32) -> worker::Result<String> {
     let token = format!("{}{}", random_uuid()?, random_uuid()?).replace('-', "");
     let expires_at = now_secs() + SESSION_SECS;
 
     db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?1, ?2, ?3)")
-        .bind(&[sha256_hex(&token).into(), user_id.into(), (expires_at as f64).into()])?
+        .bind(&[
+            sha256_hex(&token).into(),
+            user_id.into(),
+            (expires_at as f64).into(),
+        ])?
         .run()
         .await?;
 
@@ -65,7 +73,30 @@ pub async fn verify_password(password: &str, stored: &str) -> worker::Result<boo
     };
 
     let hash = pbkdf2(password, parts[2], iterations).await?;
-    Ok(constant_time_eq(to_hex(&hash).as_bytes(), parts[3].as_bytes()))
+    Ok(constant_time_eq(
+        to_hex(&hash).as_bytes(),
+        parts[3].as_bytes(),
+    ))
+}
+
+pub async fn current_user_id(db: &D1Database, headers: &HeaderMap) -> worker::Result<Option<u32>> {
+    let Some(token) = read_cookie(headers, "session") else {
+        return Ok(None);
+    };
+    if token.len() != 64 || !token.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Ok(None);
+    }
+
+    #[derive(Deserialize)]
+    struct Row {
+        user_id: u32,
+    }
+    let row: Option<Row> = db
+        .prepare("SELECT user_id FROM sessions WHERE token_hash = ?1 AND expires_at > ?2")
+        .bind(&[sha256_hex(&token).into(), (now_secs() as f64).into()])?
+        .first(None)
+        .await?;
+    Ok(row.map(|r| r.user_id))
 }
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
