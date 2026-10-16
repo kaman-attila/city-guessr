@@ -167,12 +167,12 @@ fn main() -> std::io::Result<()> {
     std::fs::create_dir_all("out")?;
     write_sql(
         "names",
-        "INSERT INTO names (id, name, first_city, city_count) VALUES",
+        "INSERT OR IGNORE INTO names (id, name, first_city, city_count) VALUES",
         &name_values,
     )?;
     write_sql(
         "cities",
-        "INSERT INTO cities (id, name, lat, lon, country, population) VALUES",
+        "INSERT OR IGNORE INTO cities (id, name, lat, lon, country, population) VALUES",
         &city_values,
     )?;
     Ok(())

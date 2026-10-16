@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SyntheticEvent } from 'react'
 import { login, logout, register, type Profile, type Theme, type Units } from './api'
 import { type Settings } from './settings'
 
@@ -25,20 +25,18 @@ export default function Account({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      // TODO: call register(email, password) or login(email, password) depending on mode,
-      //       then clear the password field and await onLoggedIn()
-      if (mode === 'register') {
-        await register(email, password)
-      } else {
-        await login(email, password)
-      }
-      setPassword('')
-      await onLoggedIn()
+        if (mode === 'register') {
+            await register(email, password)
+        } else {
+            await login(email, password)
+        }
+        setPassword('')
+        await onLoggedIn()
     } catch (err) {
       setError((err as Error).message)
     } finally {
