@@ -2,7 +2,7 @@ use axum::{
     extract::Path,
     http::{header::SET_COOKIE, HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, patch, post},
     Extension, Json, Router,
 };
 
@@ -175,6 +175,25 @@ struct LoginRow {
     pw_hash: String,
 }
 
+#[derive(Serialize, Deserialize)]
+struct Profile {
+    email: String,
+    best_score: u32,
+    theme: String,
+    units: String,
+}
+
+#[derive(Deserialize)]
+struct SettingsRequest {
+    theme: Option<String>,
+    units: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ScoreRequest {
+    score: u32,
+}
+
 fn router(env: Env) -> Router {
     Router::new()
         .route("/api/health", get(health))
@@ -188,6 +207,8 @@ fn router(env: Env) -> Router {
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
         .route("/api/me", get(me))
+        .route("/api/me/settings", patch(update_settings))
+        .route("/api/me/freeplay-score", post(freeplay_score))
         .layer(Extension(env))
 }
 
@@ -477,8 +498,8 @@ async fn daily_histogram(
     let players: u32 = counts.iter().sum();
 
     let mut your_score = None;
-    if let Some(guest_id) = guest::read_guest_id(&headers) {
-        let player_id = format!("g:{guest_id}");
+    if let Some(player) = current_player(&db, &headers).await? {
+        let player_id = player.key();
         let row: Option<PlayRow> = db
             .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
             .bind(&[player_id.as_str().into(), date.as_str().into()])?
@@ -626,12 +647,10 @@ async fn logout(
 }
 
 #[worker::send]
-async fn me(Extension(env): Extension<Env>, headers: HeaderMap) -> ApiResult<serde_json::Value> {
+async fn me(Extension(env): Extension<Env>, headers: HeaderMap) -> ApiResult<Profile> {
     let db = env.d1("DB")?;
-    let user_id = auth::current_user_id(&db, &headers)
-        .await?
-        .ok_or(AppError::Unauthorized("not logged in"))?;
-    Ok(Json(json!({ "user_id": user_id })))
+    let user_id = require_user(&db, &headers).await?;
+    Ok(Json(load_profile(&db, user_id).await?))
 }
 
 async fn current_player(db: &D1Database, headers: &HeaderMap) -> worker::Result<Option<Player>> {
@@ -647,6 +666,65 @@ async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Resul
         .run()
         .await?;
     Ok(())
+}
+
+async fn require_user(db: &D1Database, headers: &HeaderMap) -> std::result::Result<u32, AppError> {
+    auth::current_user_id(db, headers)
+        .await?
+        .ok_or(AppError::Unauthorized("not logged in"))
+}
+
+async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Profile, AppError> {
+    db.prepare("SELECT email, best_score, theme, units FROM users WHERE id = ?1")
+        .bind(&[user_id.into()])?
+        .first(None)
+        .await?
+        .ok_or_else(|| AppError::Internal(format!("session for missing user {user_id}")))
+}
+
+#[worker::send]
+async fn update_settings(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<SettingsRequest>,
+) -> ApiResult<Profile> {
+    if !matches!(
+        req.theme.as_deref(),
+        None | Some("system" | "light" | "dark")
+    ) {
+        return Err(AppError::BadRequest("theme must be system, light or dark"));
+    }
+    if !matches!(req.units.as_deref(), None | Some("metric" | "imperial")) {
+        return Err(AppError::BadRequest("units must be metric or imperial"));
+    }
+
+    let db = env.d1("DB")?;
+    let user_id = require_user(&db, &headers).await?;
+    let theme = req.theme.as_deref().map_or(JsValue::NULL, JsValue::from);
+    let units = req.units.as_deref().map_or(JsValue::NULL, JsValue::from);
+    db.prepare(
+        "UPDATE users SET theme = COALESCE(?1, theme), units = COALESCE(?2, units) WHERE id = ?3",
+    )
+    .bind(&[theme, units, user_id.into()])?
+    .run()
+    .await?;
+
+    Ok(Json(load_profile(&db, user_id).await?))
+}
+
+#[worker::send]
+async fn freeplay_score(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<ScoreRequest>,
+) -> ApiResult<Profile> {
+    if req.score > 5000 {
+        return Err(AppError::BadRequest("score must be 0 to 5000"));
+    }
+    let db = env.d1("DB")?;
+    let user_id = require_user(&db, &headers).await?;
+    update_best(&db, user_id, req.score).await?;
+    Ok(Json(load_profile(&db, user_id).await?))
 }
 
 fn random_id(min: u32, max: u32) -> u32 {
