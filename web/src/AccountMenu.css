@@ -1,0 +1,239 @@
+.account {
+  position: relative;
+}
+
+.account-btn {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.account-btn:hover {
+  background: var(--surface2);
+}
+
+.account-btn .avatar {
+  width: 36px;
+  height: 36px;
+}
+
+.avatar-guest {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.account-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  z-index: 50;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  animation: panel-in 0.16s ease-out;
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+.account-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-who .avatar {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.account-who-text {
+  min-width: 0;
+}
+
+.account-email {
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.best {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface2);
+}
+
+.best-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.best-score {
+  font-size: 20px;
+}
+
+.best-score small {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.meter > div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.divider {
+  height: 1px;
+  background: var(--line);
+}
+
+.account-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.segmented {
+  display: grid;
+  gap: 6px;
+}
+
+.segmented-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.segmented-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmented button {
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+}
+
+.segmented button:hover {
+  background: var(--surface2);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-form h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.account-field-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.account-form input {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 15px;
+}
+
+.account-form input::placeholder {
+  color: var(--muted);
+}
+
+.account-form .error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--accent-text);
+}
+
+.btn-primary {
+  height: 46px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.btn-link {
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.btn-link:hover,
+.btn-logout:hover {
+  background: var(--surface2);
+}
+
+.btn-logout {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 15px;
+}

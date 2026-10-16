@@ -49,16 +49,6 @@ body {
   color: var(--fg);
 }
 
-.panel {
-  max-width: 360px;
-  margin: 10vh auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-family: system-ui, sans-serif;
-}
-
 .panel form {
   display: flex;
   flex-direction: column;
@@ -208,16 +198,6 @@ a {
   border-radius: 8px;
   font-family: system-ui, sans-serif;
   color: var(--fg);
-}
-
-.menu {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  font-family: system-ui, sans-serif;
 }
 
 .histogram {

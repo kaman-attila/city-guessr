@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import Account from './Account'
 import Daily from './Daily'
 import Freeplay from './Freeplay'
 import { getMe, submitFreeplayScore, updateSettings, type Profile } from './api'
 import { isDark, loadLocalSettings, saveLocalSettings, type Settings } from './settings'
 import TopBar from './TopBar'
 import { UserIcon } from './icons'
+import AccountMenu from './AccountMenu'
+import Menu from './Menu'
 
-type Screen = 'menu' | 'daily' | 'freeplay' | 'account'
+type Screen = 'menu' | 'daily' | 'freeplay'
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
@@ -54,13 +55,13 @@ export default function App() {
   const back = () => setScreen('menu')
 
   const accountButton = (
-    <button
-      className="icon-btn"
-      aria-label="Account and settings"
-      onClick={() => setScreen('account')}
-    >
-      {profile ? <span className="avatar">{profile.email[0].toUpperCase()}</span> : <UserIcon />}
-    </button>
+    <AccountMenu
+      profile={profile}
+      settings={settings}
+      onSettingsChange={changeSettings}
+      onLoggedIn={refreshProfile}
+      onLoggedOut={() => setProfile(null)}
+    />
   )
 
   if (screen === 'daily')
@@ -83,26 +84,13 @@ export default function App() {
         onFinished={freeplayFinished}
       />
     )
-  if (screen === 'account')
-    return (
-      <Account
-        profile={profile}
-        settings={settings}
-        onSettingsChange={changeSettings}
-        onLoggedIn={refreshProfile}
-        onLoggedOut={() => setProfile(null)}
-        onExit={back}
-      />
-    )
 
   return (
-    <div className="menu">
-      <TopBar account={accountButton} />
-      <h1>CityGuessr</h1>
-      <button onClick={() => setScreen('daily')}>Daily challenge</button>
-      <button onClick={() => setScreen('freeplay')}>Freeplay</button>
-      <button onClick={() => setScreen('account')}>{profile ? profile.email : 'Log in'}</button>
-      {profile && <p>Best score: {profile.best_score} / 5000</p>}
-    </div>
+    <Menu
+      account={accountButton}
+      bestScore={profile?.best_score ?? null}
+      onDaily={() => setScreen('daily')}
+      onFreeplay={() => setScreen('freeplay')}
+    />
   )
 }
