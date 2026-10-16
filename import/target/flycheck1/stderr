@@ -1,2 +1,4 @@
-    Checking import v0.1.0 (C:\Users\kmntt\Documents\city_guessr_git\import)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.63s
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s

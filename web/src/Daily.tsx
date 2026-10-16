@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import MapView from './MapView'
 import HistogramChart from './HistogramChart'
 import {
@@ -12,6 +12,7 @@ import {
   type Units,
 } from './api'
 import { formatDistance } from './settings'
+import TopBar, { RoundDots } from './TopBar'
 
 type DailyGameState =
   | { phase: 'intro' }
@@ -24,11 +25,12 @@ type DailyGameState =
 type Props = {
   units: Units
   dark: boolean
+  account: ReactNode
   onExit: () => void
   onFinished: () => void
 }
 
-export default function Daily({ units, dark, onExit, onFinished }: Props) {
+export default function Daily({ units, dark, account, onExit, onFinished }: Props) {
   const [state, setState] = useState<DailyGameState>({ phase: 'intro' })
   const [date, setDate] = useState('')
   const [total, setTotal] = useState(0)
@@ -155,15 +157,32 @@ export default function Daily({ units, dark, onExit, onFinished }: Props) {
     }
   }
 
+  const roundNumber =
+    state.phase === 'guessing' || state.phase === 'result' ? state.round.round : null
+
   return (
-    <>
-      <MapView
-        guess={pendingGuess}
-        result={state.phase === 'result' ? state.result : null}
-        onMapClick={handleMapClick}
-        dark={dark}
+    <div className="screen">
+      <TopBar
+        onHome={onExit}
+        center={
+          roundNumber !== null ? (
+            <RoundDots round={roundNumber} total={5} answered={state.phase === 'result'} />
+          ) : null
+        }
+        score={roundNumber !== null ? total : null}
+        account={account}
       />
-      <div className="hud">{renderHud()}</div>
-    </>
+      <main className="stage">
+        <div className="map-card">
+          <MapView
+            guess={pendingGuess}
+            result={state.phase === 'result' ? state.result : null}
+            dark={dark}
+            onMapClick={handleMapClick}
+          />
+          <div className="hud">{renderHud()}</div>
+        </div>
+      </main>
+    </div>
   )
 }

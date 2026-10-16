@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import MapView from './MapView'
 import { getRound, submitGuess, type GuessResult, type LatLon, type Round, type Units } from './api'
 import { formatDistance } from './settings'
+import TopBar, { RoundDots } from './TopBar'
 
 const ROUNDS = 5
 
@@ -16,11 +17,12 @@ type GameState =
 type Props = {
   units: Units
   dark: boolean
+  account: ReactNode
   onExit: () => void
   onFinished: (total: number) => void
 }
 
-export default function Freeplay({ units, dark, onExit, onFinished }: Props) {
+export default function Freeplay({ units, dark, account, onExit, onFinished }: Props) {
   const [state, setState] = useState<GameState>({ phase: 'start' })
   const [roundNumber, setRoundNumber] = useState(1)
   const [total, setTotal] = useState(0)
@@ -136,15 +138,31 @@ export default function Freeplay({ units, dark, onExit, onFinished }: Props) {
     }
   }
 
+  const inGame = state.phase === 'guessing' || state.phase === 'result'
+
   return (
-    <>
-      <MapView
-        guess={pendingGuess}
-        result={state.phase === 'result' ? state.result : null}
-        onMapClick={handleMapClick}
-        dark={dark}
+    <div className="screen">
+      <TopBar
+        onHome={onExit}
+        center={
+          inGame ? (
+            <RoundDots round={roundNumber} total={ROUNDS} answered={state.phase === 'result'} />
+          ) : null
+        }
+        score={inGame ? total : null}
+        account={account}
       />
-      <div className="hud">{renderHud()}</div>
-    </>
+      <main className="stage">
+        <div className="map-card">
+          <MapView
+            guess={pendingGuess}
+            result={state.phase === 'result' ? state.result : null}
+            onMapClick={handleMapClick}
+            dark={dark}
+          />
+          <div className="hud">{renderHud()}</div>
+        </div>
+      </main>
+    </div>
   )
 }

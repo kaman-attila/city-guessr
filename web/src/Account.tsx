@@ -30,13 +30,13 @@ export default function Account({
     setBusy(true)
     setError(null)
     try {
-        if (mode === 'register') {
-            await register(email, password)
-        } else {
-            await login(email, password)
-        }
-        setPassword('')
-        await onLoggedIn()
+      if (mode === 'register') {
+        await register(email, password)
+      } else {
+        await login(email, password)
+      }
+      setPassword('')
+      await onLoggedIn()
     } catch (err) {
       setError((err as Error).message)
     } finally {

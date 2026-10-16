@@ -4,6 +4,8 @@ import Daily from './Daily'
 import Freeplay from './Freeplay'
 import { getMe, submitFreeplayScore, updateSettings, type Profile } from './api'
 import { isDark, loadLocalSettings, saveLocalSettings, type Settings } from './settings'
+import TopBar from './TopBar'
+import { UserIcon } from './icons'
 
 type Screen = 'menu' | 'daily' | 'freeplay' | 'account'
 
@@ -51,11 +53,35 @@ export default function App() {
 
   const back = () => setScreen('menu')
 
+  const accountButton = (
+    <button
+      className="icon-btn"
+      aria-label="Account and settings"
+      onClick={() => setScreen('account')}
+    >
+      {profile ? <span className="avatar">{profile.email[0].toUpperCase()}</span> : <UserIcon />}
+    </button>
+  )
+
   if (screen === 'daily')
-    return <Daily units={settings.units} dark={dark} onExit={back} onFinished={refreshProfile} />
+    return (
+      <Daily
+        units={settings.units}
+        dark={dark}
+        account={accountButton}
+        onExit={back}
+        onFinished={refreshProfile}
+      />
+    )
   if (screen === 'freeplay')
     return (
-      <Freeplay units={settings.units} dark={dark} onExit={back} onFinished={freeplayFinished} />
+      <Freeplay
+        units={settings.units}
+        dark={dark}
+        account={accountButton}
+        onExit={back}
+        onFinished={freeplayFinished}
+      />
     )
   if (screen === 'account')
     return (
@@ -71,6 +97,7 @@ export default function App() {
 
   return (
     <div className="menu">
+      <TopBar account={accountButton} />
       <h1>CityGuessr</h1>
       <button onClick={() => setScreen('daily')}>Daily challenge</button>
       <button onClick={() => setScreen('freeplay')}>Freeplay</button>
