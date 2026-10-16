@@ -1,4 +1,41 @@
-html, body, #root {
+:root {
+  --bg: #ffffff;
+  --fg: #0f172a;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f172a;
+  --fg: #e2e8f0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.panel {
+  max-width: 360px;
+  margin: 10vh auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: system-ui, sans-serif;
+}
+
+.panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.error {
+  color: #dc2626;
+}
+
+html,
+body,
+#root {
   margin: 0;
   height: 100%;
 }
@@ -8,10 +45,11 @@ html, body, #root {
   top: 12px;
   left: 12px;
   z-index: 1;
-  background: white;
+  background: var(--bg);
   padding: 8px 12px;
   border-radius: 8px;
   font-family: system-ui, sans-serif;
+  color: var(--fg);
 }
 
 .menu {

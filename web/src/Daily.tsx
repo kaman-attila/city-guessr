@@ -9,7 +9,9 @@ import {
   type GuessResult,
   type Histogram,
   type LatLon,
+  type Units,
 } from './api'
+import { formatDistance } from './settings'
 
 type DailyGameState =
   | { phase: 'intro' }
@@ -19,7 +21,14 @@ type DailyGameState =
   | { phase: 'finished'; histogram: Histogram }
   | { phase: 'error'; message: string }
 
-export default function Daily({ onExit }: { onExit: () => void }) {
+type Props = {
+  units: Units
+  dark: boolean
+  onExit: () => void
+  onFinished: () => void
+}
+
+export default function Daily({ units, dark, onExit, onFinished }: Props) {
   const [state, setState] = useState<DailyGameState>({ phase: 'intro' })
   const [date, setDate] = useState('')
   const [total, setTotal] = useState(0)
@@ -75,6 +84,7 @@ export default function Daily({ onExit }: { onExit: () => void }) {
       setState({ phase: 'guessing', round: state.next })
     } else {
       showFinished(date)
+      onFinished()
     }
   }
 
@@ -111,7 +121,7 @@ export default function Daily({ onExit }: { onExit: () => void }) {
         return (
           <>
             <p>
-              {(state.result.distance_m / 1000).toFixed(1)} km from <b>{nearest.name}</b> (
+              {formatDistance(state.result.distance_m, units)} from <b>{nearest.name}</b> (
               {nearest.country}): {state.result.score} points
             </p>
             <button onClick={next}>{state.next ? 'Next' : 'See results'}</button>
@@ -151,6 +161,7 @@ export default function Daily({ onExit }: { onExit: () => void }) {
         guess={pendingGuess}
         result={state.phase === 'result' ? state.result : null}
         onMapClick={handleMapClick}
+        dark={dark}
       />
       <div className="hud">{renderHud()}</div>
     </>

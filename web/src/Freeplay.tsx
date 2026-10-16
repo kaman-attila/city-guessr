@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import MapView from './MapView'
-import { getRound, submitGuess, type GuessResult, type LatLon, type Round } from './api'
+import { getRound, submitGuess, type GuessResult, type LatLon, type Round, type Units } from './api'
+import { formatDistance } from './settings'
 
 const ROUNDS = 5
 
@@ -12,7 +13,14 @@ type GameState =
   | { phase: 'finished' }
   | { phase: 'error'; message: string }
 
-export default function Freeplay({ onExit }: { onExit: () => void }) {
+type Props = {
+  units: Units
+  dark: boolean
+  onExit: () => void
+  onFinished: (total: number) => void
+}
+
+export default function Freeplay({ units, dark, onExit, onFinished }: Props) {
   const [state, setState] = useState<GameState>({ phase: 'start' })
   const [roundNumber, setRoundNumber] = useState(1)
   const [total, setTotal] = useState(0)
@@ -53,6 +61,7 @@ export default function Freeplay({ onExit }: { onExit: () => void }) {
       startRound(roundNumber + 1)
     } else {
       setState({ phase: 'finished' })
+      onFinished(total)
     }
   }
 
@@ -96,7 +105,7 @@ export default function Freeplay({ onExit }: { onExit: () => void }) {
         return (
           <>
             <p>
-              {(state.result.distance_m / 1000).toFixed(1)} km from <b>{nearest.name}</b> (
+              {formatDistance(state.result.distance_m, units)} from <b>{nearest.name}</b> (
               {nearest.country}): {state.result.score} points
             </p>
             {count > 1 && <p>{count} places have this name</p>}
@@ -133,6 +142,7 @@ export default function Freeplay({ onExit }: { onExit: () => void }) {
         guess={pendingGuess}
         result={state.phase === 'result' ? state.result : null}
         onMapClick={handleMapClick}
+        dark={dark}
       />
       <div className="hud">{renderHud()}</div>
     </>

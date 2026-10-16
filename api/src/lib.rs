@@ -343,9 +343,6 @@ async fn daily_guess(
     Json(req): Json<DailyGuessRequest>,
 ) -> ApiResult<DailyGuessResponse> {
     validate_coords(req.lat, req.lon)?;
-    let guest_id = guest::read_guest_id(&headers)
-        .ok_or(AppError::BadRequest("start the daily challenge first"))?;
-    let player_id = format!("g:{guest_id}");
 
     if req.date != utc_date(0) && req.date != utc_date(1) {
         return Err(AppError::BadRequest("that daily challenge is over"));

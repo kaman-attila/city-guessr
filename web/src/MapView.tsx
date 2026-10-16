@@ -11,9 +11,12 @@ type Props = {
   guess: LatLon | null
   onMapClick: (lat: number, lon: number) => void
   result: GuessResult | null
+  dark: boolean
 }
 
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
+const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/positron'
+const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
 
 function unwrapLon(lon: number, nearLon: number): number {
   if (lon - nearLon > 180) return lon - 360
@@ -21,37 +24,49 @@ function unwrapLon(lon: number, nearLon: number): number {
   return lon
 }
 
-export default function MapView({ guess, onMapClick, result }: Props) {
+function addGuessLine(map: maplibregl.Map) {
+  if (map.getSource('guess-line')) return
+  map.addSource('guess-line', { type: 'geojson', data: EMPTY })
+  map.addLayer({
+    id: 'guess-line',
+    type: 'line',
+    source: 'guess-line',
+    paint: { 'line-color': '#e11d48', 'line-width': 2, 'line-dasharray': [2, 2] },
+  })
+}
+
+export default function MapView({ guess, onMapClick, result, dark }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
   const onMapClickRef = useRef(onMapClick)
   const cityMarkersRef = useRef<maplibregl.Marker[]>([])
+  const styleUrl = dark ? DARK_STYLE : LIGHT_STYLE
+  const styleRef = useRef(styleUrl)
 
   useEffect(() => {
     onMapClickRef.current = onMapClick
   })
 
   useEffect(() => {
+    const map = mapRef.current
+    if (!map || styleRef.current === styleUrl) return
+    styleRef.current = styleUrl
+    map.setStyle(styleUrl, { diff: false })
+  }, [styleUrl])
+
+  useEffect(() => {
     if (!containerRef.current) return
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: 'https://tiles.openfreemap.org/styles/positron',
+      style: styleRef.current,
       center: [10, 30],
       zoom: 1.5,
     })
     mapRef.current = map
 
-    map.on('load', () => {
-      map.addSource('guess-line', { type: 'geojson', data: EMPTY })
-      map.addLayer({
-        id: 'guess-line',
-        type: 'line',
-        source: 'guess-line',
-        paint: { 'line-color': '#e11d48', 'line-width': 2, 'line-dasharray': [2, 2] },
-      })
-    })
+    map.on('style.load', () => addGuessLine(map))
 
     map.on('click', (e) => {
       const { lat, lng } = e.lngLat.wrap()
