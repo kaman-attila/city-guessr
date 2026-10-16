@@ -486,7 +486,7 @@ async fn daily_histogram(
         .await?
         .results()?;
 
-    let mut counts = vec![0u32; game::BUCKET_STARTS.len()];
+    let mut counts = vec![0u32; game::BUCKETS as usize];
     for r in &rows {
         if let Some(c) = counts.get_mut(r.bucket as usize) {
             *c = r.count;
@@ -516,7 +516,7 @@ async fn daily_histogram(
 
     Ok(Json(HistogramResponse {
         date,
-        bucket_starts: game::BUCKET_STARTS.to_vec(),
+        bucket_starts: (0..game::BUCKETS).map(|i| i * game::BUCKET_SIZE).collect(),
         your_bucket: your_score.map(game::bucket_for),
         counts,
         players,

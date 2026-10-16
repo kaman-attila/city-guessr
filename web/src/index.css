@@ -188,15 +188,6 @@ a {
   }
 }
 
-.histogram {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 120px;
-  width: 280px;
-  margin: 8px 0;
-}
-
 .histogram .bar {
   flex: 1;
   min-height: 2px;

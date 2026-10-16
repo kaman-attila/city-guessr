@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import MapView from './MapView'
-import HistogramChart from './HistogramChart'
+import DailyResults, { type RoundScore } from './DailyResults'
 import {
   getHistogram,
   startDaily,
@@ -20,7 +20,7 @@ import {
   ResultLegend,
   ResultPanel,
 } from './GameParts'
-import { CalendarIcon, HomeIcon, PlayIcon } from './icons'
+import { CalendarIcon, PlayIcon } from './icons'
 
 const ROUNDS = 5
 
@@ -38,13 +38,15 @@ type Props = {
   account: ReactNode
   onExit: () => void
   onFinished: () => void
+  onFreeplay: () => void
 }
 
-export default function Daily({ units, dark, account, onExit, onFinished }: Props) {
+export default function Daily({ units, dark, account, onExit, onFinished, onFreeplay }: Props) {
   const [state, setState] = useState<DailyGameState>({ phase: 'intro' })
   const [date, setDate] = useState('')
   const [total, setTotal] = useState(0)
   const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
+  const [rounds, setRounds] = useState<RoundScore[]>([])
 
   function fail(err: unknown) {
     setState({ phase: 'error', message: (err as Error).message })
@@ -83,6 +85,7 @@ export default function Daily({ units, dark, account, onExit, onFinished }: Prop
     try {
       const res = await submitDailyGuess(date, pendingGuess.lat, pendingGuess.lon)
       setTotal(res.total)
+      setRounds((r) => [...r, { name: round.name, score: res.result.score }])
       setState({ phase: 'result', round, result: res.result, next: res.next })
     } catch (err) {
       fail(err)
@@ -121,28 +124,6 @@ export default function Daily({ units, dark, account, onExit, onFinished }: Prop
           </>
         )
 
-      case 'finished': {
-        const h = state.histogram
-        return (
-          <>
-            <span className="label">Your score</span>
-            <div className="display total">
-              {total}
-              <small> / 5000</small>
-            </div>
-            <HistogramChart data={h} />
-            {h.better_than_percent !== null && (
-              <p>
-                Better than {h.better_than_percent}% of {h.players} players
-              </p>
-            )}
-            <button className="fab" aria-label="Back to menu" onClick={onExit}>
-              <HomeIcon size={30} strokeWidth={2.4} />
-            </button>
-          </>
-        )
-      }
-
       case 'error':
         return (
           <>
@@ -174,42 +155,52 @@ export default function Daily({ units, dark, account, onExit, onFinished }: Prop
         score={round !== null ? total : null}
         account={account}
       />
-      <main className="stage">
-        <CityHeading
-          kicker={state.phase === 'result' ? 'Daily · you found' : 'Daily · find'}
-          name={round !== null ? round.name : null}
+      {state.phase === 'finished' ? (
+        <DailyResults
+          date={date}
+          total={total}
+          histogram={state.histogram}
+          rounds={rounds.length === ROUNDS ? rounds : null}
+          onFreeplay={onFreeplay}
         />
-        <div className="map-card">
-          <MapView
-            guess={pendingGuess}
-            result={state.phase === 'result' ? state.result : null}
-            onMapClick={handleMapClick}
-            dark={dark}
-            units={units}
+      ) : (
+        <main className="stage">
+          <CityHeading
+            kicker={state.phase === 'result' ? 'Daily · you found' : 'Daily · find'}
+            name={round !== null ? round.name : null}
           />
-          {state.phase === 'guessing' && !pendingGuess && <MapHint />}
-          {state.phase === 'guessing' && (
-            <GuessControls
-              hasPin={pendingGuess !== null}
-              onClear={() => setPendingGuess(null)}
-              onSubmit={submit}
+          <div className="map-card">
+            <MapView
+              guess={pendingGuess}
+              result={state.phase === 'result' ? state.result : null}
+              onMapClick={handleMapClick}
+              dark={dark}
+              units={units}
             />
-          )}
-          {state.phase === 'result' && (
-            <>
-              <ResultLegend sameName={state.result.cities.length > 1} />
-              <ResultPanel
-                result={state.result}
-                units={units}
-                placeName={state.round.name}
-                nextLabel={'Next Round'}
-                onNext={next}
+            {state.phase === 'guessing' && !pendingGuess && <MapHint />}
+            {state.phase === 'guessing' && (
+              <GuessControls
+                hasPin={pendingGuess !== null}
+                onClear={() => setPendingGuess(null)}
+                onSubmit={submit}
               />
-            </>
-          )}
-          {overlay && <CenterCard>{overlay}</CenterCard>}
-        </div>
-      </main>
+            )}
+            {state.phase === 'result' && (
+              <>
+                <ResultLegend sameName={state.result.cities.length > 1} />
+                <ResultPanel
+                  result={state.result}
+                  units={units}
+                  placeName={state.round.name}
+                  nextLabel={state.next ? 'Next round' : 'See results'}
+                  onNext={next}
+                />
+              </>
+            )}
+            {overlay && <CenterCard>{overlay}</CenterCard>}
+          </div>
+        </main>
+      )}
     </div>
   )
 }

@@ -3,7 +3,14 @@ import MapView from './MapView'
 import { getRound, submitGuess, type GuessResult, type LatLon, type Round, type Units } from './api'
 import TopBar, { RoundDots } from './TopBar'
 import { InfinityIcon, PlayIcon, ReplayIcon } from './icons'
-import { CityHeading, MapHint, GuessControls, CenterCard, ResultLegend, ResultPanel} from './GameParts'
+import {
+  CityHeading,
+  MapHint,
+  GuessControls,
+  CenterCard,
+  ResultLegend,
+  ResultPanel,
+} from './GameParts'
 
 const ROUNDS = 5
 
@@ -124,19 +131,23 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
 
   return (
     <div className="screen">
-      <TopBar 
+      <TopBar
         onHome={onExit}
         center={
-        inGame ? (
+          inGame ? (
             <RoundDots round={roundNumber} total={ROUNDS} answered={state.phase === 'result'} />
           ) : null
         }
         score={inGame ? total : null}
-        account={account} />
+        account={account}
+      />
       <main className="stage">
-        <CityHeading kicker={state.phase === 'result' ? 'Freeplay · you found' : 'Freeplay · find'} name={cityName} />
+        <CityHeading
+          kicker={state.phase === 'result' ? 'Freeplay · you found' : 'Freeplay · find'}
+          name={cityName}
+        />
         <div className="map-card">
-          <MapView 
+          <MapView
             guess={pendingGuess}
             result={state.phase === 'result' ? state.result : null}
             onMapClick={handleMapClick}

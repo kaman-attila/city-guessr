@@ -70,6 +70,7 @@ export default function App() {
         account={accountButton}
         onExit={back}
         onFinished={refreshProfile}
+        onFreeplay={() => setScreen('freeplay')}
       />
     )
   if (screen === 'freeplay')
