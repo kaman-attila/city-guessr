@@ -3,8 +3,6 @@ import Daily from './Daily'
 import Freeplay from './Freeplay'
 import { getMe, submitFreeplayScore, updateSettings, type Profile } from './api'
 import { isDark, loadLocalSettings, saveLocalSettings, type Settings } from './settings'
-import TopBar from './TopBar'
-import { UserIcon } from './icons'
 import AccountMenu from './AccountMenu'
 import Menu from './Menu'
 

@@ -1,0 +1,137 @@
+.city-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.city-name {
+  margin: 0;
+  font-size: clamp(36px, 6vw, 72px);
+  line-height: 1.02;
+}
+
+.map-hint {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.guess-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  z-index: 2;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-btn-lg {
+  width: 52px;
+  height: 52px;
+}
+
+.fab {
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow:
+    0 0 0 8px var(--accent-soft),
+    var(--shadow);
+  transition: transform 0.15s ease;
+}
+
+.fab:hover:not(:disabled) {
+  transform: scale(1.06);
+}
+
+.fab:disabled {
+  background: var(--surface);
+  color: var(--muted);
+  border: 2px dashed var(--line);
+  box-shadow: var(--shadow);
+}
+
+.center-card-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.center-card {
+  width: 380px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px;
+  border-radius: 26px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.center-card h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.center-card p {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.center-card-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--sun);
+  color: var(--sun-ink);
+}
+
+.center-card-icon.daily {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.total {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.total small {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--muted);
+  letter-spacing: 0;
+}

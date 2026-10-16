@@ -3,6 +3,8 @@ import MapView from './MapView'
 import { getRound, submitGuess, type GuessResult, type LatLon, type Round, type Units } from './api'
 import { formatDistance } from './settings'
 import TopBar, { RoundDots } from './TopBar'
+import { InfinityIcon, PlayIcon, ReplayIcon } from './icons'
+import { CityHeading, MapHint, GuessControls, CenterCard } from './GameParts'
 
 const ROUNDS = 5
 
@@ -72,73 +74,53 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
     setPendingGuess({ lat, lon })
   }
 
-  function renderHud() {
+  function renderOverlay() {
     switch (state.phase) {
       case 'start':
         return (
           <>
-            <p>Freeplay: 5 random cities, as many games as you like.</p>
-            <button onClick={startGame}>Play</button> <button onClick={onExit}>Back to menu</button>
-          </>
-        )
-
-      case 'loading':
-        return <p>Loading…</p>
-
-      case 'guessing':
-        return (
-          <>
-            <p>
-              Round {roundNumber}/{ROUNDS}: find <b>{state.round.name}</b>
-            </p>
-            <p>Click the map to place your guess</p>
-            <button
-              disabled={!pendingGuess}
-              onClick={() => pendingGuess && guess(pendingGuess.lat, pendingGuess.lon)}
-            >
-              Submit guess
+            <span className="center-card-icon">
+              <InfinityIcon size={30} strokeWidth={2.2} />
+            </span>
+            <h2 className="display">Freeplay</h2>
+            <p>5 random cities, from easy to hard. Drop your pin as close as you can.</p>
+            <button className="fab" aria-label="Start" onClick={startGame}>
+              <PlayIcon size={34} />
             </button>
           </>
         )
-
-      case 'result': {
-        const nearest = state.result.cities[state.result.closest]
-        const count = state.result.cities.length
-        return (
-          <>
-            <p>
-              {formatDistance(state.result.distance_m, units)} from <b>{nearest.name}</b> (
-              {nearest.country}): {state.result.score} points
-            </p>
-            {count > 1 && <p>{count} places have this name</p>}
-            <button onClick={next}>{roundNumber < ROUNDS ? 'Next' : 'See total'}</button>
-          </>
-        )
-      }
-
       case 'finished':
         return (
           <>
-            <p>
-              Total: <b>{total}</b> / {ROUNDS * 1000}
-            </p>
-            <button onClick={startGame}>Play again</button>{' '}
-            <button onClick={onExit}>Back to menu</button>
+            <span className="label">Total</span>
+            <div className="display total">
+              {total}
+              <small> / 5000</small>
+            </div>
+            <button className="fab" aria-label="Play again" onClick={startGame}>
+              <ReplayIcon size={32} strokeWidth={2.6} />
+            </button>
           </>
         )
 
       case 'error':
         return (
           <>
+            <h2 className="display">Oops</h2>
             <p>Something went wrong: {state.message}</p>
-            <button onClick={startGame}>Try again</button>{' '}
-            <button onClick={onExit}>Back to menu</button>
+            <button className="btn-primary" onClick={startGame}>
+              Try again
+            </button>
           </>
         )
+      default:
+        return null
     }
   }
 
   const inGame = state.phase === 'guessing' || state.phase === 'result'
+  const overlay = renderOverlay()
+  const cityName = state.phase === 'guessing' || state.phase === 'result' ? state.round.name : null
 
   return (
     <div className="screen">
@@ -153,6 +135,10 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
         account={account}
       />
       <main className="stage">
+        <CityHeading
+          kicker={state.phase === 'result' ? 'Freeplay · you found' : 'Freeplay · find'}
+          name={cityName}
+        />
         <div className="map-card">
           <MapView
             guess={pendingGuess}
@@ -160,7 +146,33 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
             onMapClick={handleMapClick}
             dark={dark}
           />
-          <div className="hud">{renderHud()}</div>
+          {state.phase === 'guessing' && !pendingGuess && <MapHint />}
+          {state.phase === 'guessing' && (
+            <GuessControls
+              hasPin={pendingGuess !== null}
+              onClear={() => setPendingGuess(null)}
+              onSubmit={() => pendingGuess && guess(pendingGuess.lat, pendingGuess.lon)}
+            />
+          )}
+          {state.phase === 'result' && (
+            <div className="hud">
+              {state.phase === 'result' && (
+                <div className="hud">
+                  <p>
+                    {formatDistance(state.result.distance_m, units)} from{' '}
+                    <b>{state.result.cities[state.result.closest].name}</b> (
+                    {state.result.cities[state.result.closest].country}): {state.result.score}{' '}
+                    points
+                  </p>
+                  {state.result.cities.length > 1 && (
+                    <p>{state.result.cities.length} places have this name</p>
+                  )}
+                  <button onClick={next}>{roundNumber < ROUNDS ? 'Next' : 'See total'}</button>
+                </div>
+              )}
+            </div>
+          )}
+          {overlay && <CenterCard>{overlay}</CenterCard>}
         </div>
       </main>
     </div>

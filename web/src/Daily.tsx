@@ -13,6 +13,10 @@ import {
 } from './api'
 import { formatDistance } from './settings'
 import TopBar, { RoundDots } from './TopBar'
+import { CityHeading, CenterCard, GuessControls, MapHint } from './GameParts'
+import { CalendarIcon, HomeIcon, PlayIcon } from './icons'
+
+const ROUNDS = 5
 
 type DailyGameState =
   | { phase: 'intro' }
@@ -95,92 +99,106 @@ export default function Daily({ units, dark, account, onExit, onFinished }: Prop
     setPendingGuess({ lat, lon })
   }
 
-  function renderHud() {
+  function renderOverlay() {
     switch (state.phase) {
       case 'intro':
         return (
           <>
-            <p>Today's challenge: 5 cities, the same for everyone, one try per day.</p>
-            <button onClick={begin}>Start</button> <button onClick={onExit}>Back</button>
-          </>
-        )
-      case 'loading':
-        return <p>Loading…</p>
-      case 'guessing':
-        return (
-          <>
-            <p>
-              Daily, round {state.round.round}/5: find <b>{state.round.name}</b>
-            </p>
-            <p>Score so far: {total}</p>
-            <button disabled={!pendingGuess} onClick={submit}>
-              Submit guess
+            <span className="center-card-icon daily">
+              <CalendarIcon size={28} strokeWidth={2.2} />
+            </span>
+            <h2 className="display">Daily challenge</h2>
+            <p>Today's 5 cities, the same for everyone. One try.</p>
+            <button className="fab" aria-label="Start today's challenge" onClick={begin}>
+              <PlayIcon size={34} />
             </button>
           </>
         )
-      case 'result': {
-        const nearest = state.result.cities[state.result.closest]
-        return (
-          <>
-            <p>
-              {formatDistance(state.result.distance_m, units)} from <b>{nearest.name}</b> (
-              {nearest.country}): {state.result.score} points
-            </p>
-            <button onClick={next}>{state.next ? 'Next' : 'See results'}</button>
-          </>
-        )
-      }
+
       case 'finished': {
         const h = state.histogram
         return (
           <>
-            <p>
-              Your score: <b>{total}</b> / 5000
-            </p>
+            <span className="label">Your score</span>
+            <div className="display total">
+              {total}
+              <small> / 5000</small>
+            </div>
             <HistogramChart data={h} />
             {h.better_than_percent !== null && (
               <p>
                 Better than {h.better_than_percent}% of {h.players} players
               </p>
             )}
-            <button onClick={onExit}>Back to menu</button>
+            <button className="fab" aria-label="Back to menu" onClick={onExit}>
+              <HomeIcon size={30} strokeWidth={2.4} />
+            </button>
           </>
         )
       }
+
       case 'error':
         return (
           <>
+            <h2 className="display">Oops</h2>
             <p>Something went wrong: {state.message}</p>
-            <button onClick={begin}>Try again</button> <button onClick={onExit}>Back</button>
+            <button className="btn-primary" onClick={begin}>
+              Try again
+            </button>
           </>
         )
+
+      default:
+        return null
     }
   }
 
-  const roundNumber =
-    state.phase === 'guessing' || state.phase === 'result' ? state.round.round : null
+  const overlay = renderOverlay()
+  const round = state.phase === 'guessing' || state.phase === 'result' ? state.round : null
 
   return (
     <div className="screen">
       <TopBar
         onHome={onExit}
         center={
-          roundNumber !== null ? (
-            <RoundDots round={roundNumber} total={5} answered={state.phase === 'result'} />
+          round !== null ? (
+            <RoundDots round={round.round} total={ROUNDS} answered={state.phase === 'result'} />
           ) : null
         }
-        score={roundNumber !== null ? total : null}
+        score={round !== null ? total : null}
         account={account}
       />
       <main className="stage">
+        <CityHeading
+          kicker={state.phase === 'result' ? 'Daily · you found' : 'Daily · find'}
+          name={round !== null ? round.name : null}
+        />
         <div className="map-card">
           <MapView
             guess={pendingGuess}
             result={state.phase === 'result' ? state.result : null}
-            dark={dark}
             onMapClick={handleMapClick}
+            dark={dark}
           />
-          <div className="hud">{renderHud()}</div>
+          {state.phase === 'guessing' && !pendingGuess && <MapHint />}
+          {state.phase === 'guessing' && (
+            <GuessControls
+              hasPin={pendingGuess !== null}
+              onClear={() => setPendingGuess(null)}
+              onSubmit={submit}
+            />
+          )}
+          {state.phase === 'result' && (
+            <div className="hud">
+              <p>
+                {formatDistance(state.result.distance_m, units)} from{' '}
+                <b>{state.result.cities[state.result.closest].name}</b> (
+                {state.result.cities[state.result.closest].country}): {state.result.score} points
+              </p>
+              <button onClick={next}>{state.next ? 'Next' : 'See results'}</button>
+            </div>
+          )}
+          {overlay && <CenterCard>{overlay}</CenterCard>}
         </div>
       </main>
     </div>

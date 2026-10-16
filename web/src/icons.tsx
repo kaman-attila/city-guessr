@@ -145,3 +145,16 @@ export const PinIcon = (p: IconProps) => (
     <circle cx="12" cy="10" r="2.6" style={{ fill: 'var(--surface)' }} />
   </Icon>
 )
+
+export const PlayIcon = (p: IconProps) => (
+  <Icon fill="currentColor" {...p}>
+    <path d="M8 5.5v13l10.5-6.5z" />
+  </Icon>
+)
+
+export const ReplayIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+    <path d="M4.5 4.5V8H8" />
+  </Icon>
+)
