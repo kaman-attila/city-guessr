@@ -1,11 +1,5 @@
 export type LatLon = { lat: number; lon: number }
 
-export type Round = {
-  round: number
-  name_id: number
-  name: string
-}
-
 export type City = {
   name: string
   country: string
@@ -20,14 +14,16 @@ export type GuessResult = {
   cities: City[]
 }
 
-export type DailyRound = { round: number; name: string }
+export type NextRound = { round: number; name: string }
 
-export type DailyState = { date: string; total: number; next: DailyRound | null }
+export type DailyState = { date: string; total: number; next: NextRound | null }
 
-export type DailyGuessResult = {
+export type FreeplayStart = { game_id: string; next: NextRound }
+
+export type RoundGuessResult = {
   result: GuessResult
   total: number
-  next: DailyRound | null
+  next: NextRound | null
 }
 
 export type Histogram = {
@@ -59,15 +55,19 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function getRound(n: number): Promise<Round> {
-  return request<Round>(`/api/freeplay/round/${n}`)
+export function startFreeplay(): Promise<FreeplayStart> {
+  return request<FreeplayStart>('/api/freeplay', { method: 'POST' })
 }
 
-export function submitGuess(nameId: number, lat: number, lon: number): Promise<GuessResult> {
-  return request<GuessResult>('/api/guess', {
+export function submitFreeplayGuess(
+  gameId: string,
+  lat: number,
+  lon: number,
+): Promise<RoundGuessResult> {
+  return request<RoundGuessResult>('/api/freeplay/guess', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name_id: nameId, lat, lon }),
+    body: JSON.stringify({ game_id: gameId, lat, lon }),
   })
 }
 
@@ -79,8 +79,8 @@ export function submitDailyGuess(
   date: string,
   lat: number,
   lon: number,
-): Promise<DailyGuessResult> {
-  return request<DailyGuessResult>('/api/daily/guess', {
+): Promise<RoundGuessResult> {
+  return request<RoundGuessResult>('/api/daily/guess', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ date, lat, lon }),
@@ -120,8 +120,4 @@ export async function getMe(): Promise<Profile | null> {
 
 export function updateSettings(change: Partial<Pick<Profile, 'theme' | 'units'>>) {
   return sendJson<Profile>('/api/me/settings', change, 'PATCH')
-}
-
-export function submitFreeplayScore(score: number) {
-  return sendJson<Profile>('/api/me/freeplay-score', { score })
 }

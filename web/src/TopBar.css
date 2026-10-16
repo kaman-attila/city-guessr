@@ -93,3 +93,23 @@
     display: none;
   }
 }
+
+/* phones: keep everything on one row */
+@media (max-width: 520px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .topbar-side {
+    gap: 8px;
+  }
+
+  .pill {
+    padding: 0 12px;
+  }
+
+  .pill .dots,
+  .pill-unit {
+    display: none;
+  }
+}

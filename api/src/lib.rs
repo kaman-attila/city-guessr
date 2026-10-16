@@ -18,6 +18,7 @@ mod guest;
 mod util;
 
 const GUEST_LIMIT_PER_IP: u32 = 3;
+const FREEPLAY_GAME_SECS: i64 = 24 * 60 * 60;
 
 enum AppError {
     BadRequest(&'static str),
@@ -65,7 +66,7 @@ impl Player {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct NameRow {
     id: u32,
     name: String,
@@ -73,19 +74,6 @@ struct NameRow {
     city_count: u32,
 }
 
-#[derive(Serialize)]
-struct RoundResponse {
-    round: u32,
-    name_id: u32,
-    name: String,
-}
-
-#[derive(Deserialize)]
-struct GuessRequest {
-    name_id: u32,
-    lat: f64,
-    lon: f64,
-}
 
 #[derive(Serialize, Deserialize)]
 struct CityRow {
@@ -104,7 +92,7 @@ struct GuessResponse {
 }
 
 #[derive(Serialize)]
-struct DailyRound {
+struct NextRound {
     round: u32,
     name: String,
 }
@@ -113,7 +101,7 @@ struct DailyRound {
 struct DailyState {
     date: String,
     total: u32,
-    next: Option<DailyRound>,
+    next: Option<NextRound>,
 }
 
 #[derive(Deserialize)]
@@ -130,10 +118,29 @@ struct DailyGuessRequest {
 }
 
 #[derive(Serialize)]
-struct DailyGuessResponse {
+struct RoundGuessResponse {
     result: GuessResponse,
     total: u32,
-    next: Option<DailyRound>,
+    next: Option<NextRound>,
+}
+
+#[derive(Deserialize)]
+struct FreeplayRow {
+    round: u32,
+    name_id: Option<u32>,
+}
+
+#[derive(Serialize)]
+struct FreeplayStart {
+    game_id: String,
+    next: NextRound,
+}
+
+#[derive(Deserialize)]
+struct FreeplayGuessRequest {
+    game_id: String,
+    lat: f64,
+    lon: f64,
 }
 
 #[derive(Deserialize)]
@@ -189,17 +196,11 @@ struct SettingsRequest {
     units: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct ScoreRequest {
-    score: u32,
-}
-
 fn router(env: Env) -> Router {
     Router::new()
         .route("/api/health", get(health))
-        .route("/api/names/{id}", get(get_name))
-        .route("/api/freeplay/round/{n}", get(freeplay_round))
-        .route("/api/guess", post(guess))
+        .route("/api/freeplay", post(freeplay_start))
+        .route("/api/freeplay/guess", post(freeplay_guess))
         .route("/api/daily", post(daily_start))
         .route("/api/daily/guess", post(daily_guess))
         .route("/api/daily/histogram/{date}", get(daily_histogram))
@@ -208,7 +209,6 @@ fn router(env: Env) -> Router {
         .route("/api/logout", post(logout))
         .route("/api/me", get(me))
         .route("/api/me/settings", patch(update_settings))
-        .route("/api/me/freeplay-score", post(freeplay_score))
         .layer(Extension(env))
 }
 
@@ -225,15 +225,6 @@ async fn health() -> Json<Value> {
     Json(json!({ "ok": true }))
 }
 
-#[worker::send]
-async fn get_name(Extension(env): Extension<Env>, Path(id): Path<u32>) -> ApiResult<NameRow> {
-    let db = env.d1("DB")?;
-    let row = find_name(&db, id)
-        .await?
-        .ok_or(AppError::NotFound("name not found"))?;
-    Ok(Json(row))
-}
-
 async fn find_name(db: &D1Database, id: u32) -> worker::Result<Option<NameRow>> {
     db.prepare("SELECT id, name, first_city, city_count FROM names WHERE id = ?1")
         .bind(&[id.into()])?
@@ -241,24 +232,98 @@ async fn find_name(db: &D1Database, id: u32) -> worker::Result<Option<NameRow>> 
         .await
 }
 
-#[worker::send]
-async fn freeplay_round(
-    Extension(env): Extension<Env>,
-    Path(round): Path<u32>,
-) -> ApiResult<RoundResponse> {
-    let (min, max) =
-        game::id_range_for_round(round).ok_or(AppError::BadRequest("round must be 1 to 5"))?;
+async fn random_name_for_round(db: &D1Database, round: u32) -> std::result::Result<NameRow, AppError> {
+    let (min, max) = game::id_range_for_round(round)
+        .ok_or_else(|| AppError::Internal(format!("no id range for round {round}")))?;
     let id = random_id(min, max);
+    find_name(db, id)
+        .await?
+        .ok_or_else(|| AppError::Internal(format!("random name id {id} not found")))
+}
+
+#[worker::send]
+async fn freeplay_start(Extension(env): Extension<Env>) -> ApiResult<FreeplayStart> {
+    let db = env.d1("DB")?;
+    let now = util::now_secs();
+
+    db.prepare("DELETE FROM freeplay_games WHERE created_at < ?1")
+        .bind(&[((now - FREEPLAY_GAME_SECS) as f64).into()])?
+        .run()
+        .await?;
+
+    let name = random_name_for_round(&db, 1).await?;
+    let game_id = util::random_uuid()?;
+    db.prepare("INSERT INTO freeplay_games (id, name_id, created_at) VALUES (?1, ?2, ?3)")
+        .bind(&[game_id.as_str().into(), name.id.into(), (now as f64).into()])?
+        .run()
+        .await?;
+
+    Ok(Json(FreeplayStart {
+        game_id,
+        next: NextRound {
+            round: 1,
+            name: name.name,
+        },
+    }))
+}
+
+#[worker::send]
+async fn freeplay_guess(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<FreeplayGuessRequest>,
+) -> ApiResult<RoundGuessResponse> {
+    validate_coords(req.lat, req.lon)?;
     let db = env.d1("DB")?;
 
-    let row = find_name(&db, id)
+    let row: FreeplayRow = db
+        .prepare("SELECT round, name_id FROM freeplay_games WHERE id = ?1")
+        .bind(&[req.game_id.as_str().into()])?
+        .first(None)
         .await?
-        .ok_or_else(|| AppError::Internal(format!("random name id {id} not found")))?;
+        .ok_or(AppError::NotFound("game not found, start a new one"))?;
+    let Some(name_id) = row.name_id else {
+        return Err(AppError::BadRequest("already finished"));
+    };
 
-    Ok(Json(RoundResponse {
-        round,
-        name_id: row.id,
-        name: row.name,
+    let result = score_guess(&db, name_id, req.lat, req.lon).await?;
+
+    let next_name = if row.round + 1 < 5 {
+        Some(random_name_for_round(&db, row.round + 2).await?)
+    } else {
+        None
+    };
+    let next_id = next_name.as_ref().map_or(JsValue::NULL, |n| n.id.into());
+
+    let updated: PlayRow = db
+        .prepare(
+            "UPDATE freeplay_games SET round = round + 1, score = score + ?1, name_id = ?2 \
+             WHERE id = ?3 AND round = ?4 \
+             RETURNING round, score",
+        )
+        .bind(&[
+            result.score.into(),
+            next_id,
+            req.game_id.as_str().into(),
+            row.round.into(),
+        ])?
+        .first(None)
+        .await?
+        .ok_or(AppError::Conflict("round already answered"))?;
+
+    if next_name.is_none() {
+        if let Some(user_id) = auth::current_user_id(&db, &headers).await? {
+            update_best(&db, user_id, updated.score).await?;
+        }
+    }
+
+    Ok(Json(RoundGuessResponse {
+        result,
+        total: updated.score,
+        next: next_name.map(|n| NextRound {
+            round: updated.round + 1,
+            name: n.name,
+        }),
     }))
 }
 
@@ -269,16 +334,6 @@ async fn find_cities(db: &D1Database, first: u32, count: u32) -> worker::Result<
         .all()
         .await?
         .results()
-}
-
-#[worker::send]
-async fn guess(
-    Extension(env): Extension<Env>,
-    Json(req): Json<GuessRequest>,
-) -> ApiResult<GuessResponse> {
-    validate_coords(req.lat, req.lon)?;
-    let db = env.d1("DB")?;
-    Ok(Json(score_guess(&db, req.name_id, req.lat, req.lon).await?))
 }
 
 #[worker::send]
@@ -326,7 +381,7 @@ async fn daily_start(
         DailyState {
             date,
             total: row.score,
-            next: Some(DailyRound {
+            next: Some(NextRound {
                 round: row.round + 1,
                 name: name.name,
             }),
@@ -341,7 +396,7 @@ async fn daily_guess(
     Extension(env): Extension<Env>,
     headers: HeaderMap,
     Json(req): Json<DailyGuessRequest>,
-) -> ApiResult<DailyGuessResponse> {
+) -> ApiResult<RoundGuessResponse> {
     validate_coords(req.lat, req.lon)?;
 
     if req.date != utc_date(0) && req.date != utc_date(1) {
@@ -389,7 +444,7 @@ async fn daily_guess(
         let name = find_name(&db, ids[updated.round as usize])
             .await?
             .ok_or_else(|| AppError::Internal("daily name id not found".to_string()))?;
-        Some(DailyRound {
+        Some(NextRound {
             round: updated.round + 1,
             name: name.name,
         })
@@ -407,7 +462,7 @@ async fn daily_guess(
         None
     };
 
-    Ok(Json(DailyGuessResponse {
+    Ok(Json(RoundGuessResponse {
         result,
         total: updated.score,
         next,
@@ -541,7 +596,8 @@ async fn adopt_guest_play(
         .prepare(
             "UPDATE daily_plays SET player_id = ?1 \
          WHERE player_id = ?2 AND date = ?3 \
-         AND NOT EXISTS (SELECT 1 FROM daily_plays WHERE player_id = ?1 AND date = ?3)",
+         AND NOT EXISTS (SELECT 1 FROM daily_plays WHERE player_id = ?1 AND date = ?3) \
+         RETURNING round, score",
         )
         .bind(&[
             user_player.as_str().into(),
@@ -567,7 +623,7 @@ async fn register(
 ) -> std::result::Result<axum::response::Response, AppError> {
     let email = req.email.trim().to_lowercase();
 
-    if !email.contains('@') || email.len() > 254 {
+    if !util::is_valid_email(&email) {
         return Err(AppError::BadRequest("please enter a valid email address"));
     }
     let pw_len = req.password.chars().count();
@@ -706,21 +762,6 @@ async fn update_settings(
     .run()
     .await?;
 
-    Ok(Json(load_profile(&db, user_id).await?))
-}
-
-#[worker::send]
-async fn freeplay_score(
-    Extension(env): Extension<Env>,
-    headers: HeaderMap,
-    Json(req): Json<ScoreRequest>,
-) -> ApiResult<Profile> {
-    if req.score > 5000 {
-        return Err(AppError::BadRequest("score must be 0 to 5000"));
-    }
-    let db = env.d1("DB")?;
-    let user_id = require_user(&db, &headers).await?;
-    update_best(&db, user_id, req.score).await?;
     Ok(Json(load_profile(&db, user_id).await?))
 }
 

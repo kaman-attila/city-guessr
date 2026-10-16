@@ -31,6 +31,7 @@
   box-shadow: var(--shadow);
   font-weight: 700;
   font-size: 15px;
+  white-space: nowrap;
 }
 
 .menu-tag .mono {
@@ -46,27 +47,28 @@
   color: var(--sun);
 }
 
+/* tags hang off the sides of the mode cards, so they never cover the title */
 .tag-1 {
-  left: 9%;
-  top: 26%;
+  right: calc(100% + 56px);
+  top: -24px;
   transform: rotate(-6deg);
 }
 
 .tag-2 {
-  right: 8%;
-  top: 31%;
+  left: calc(100% + 44px);
+  top: 4px;
   transform: rotate(5deg);
 }
 
 .tag-3 {
-  left: 13%;
-  bottom: 20%;
+  right: calc(100% + 28px);
+  bottom: 12px;
   transform: rotate(4deg);
 }
 
 .tag-4 {
-  right: 13%;
-  bottom: 23%;
+  left: calc(100% + 72px);
+  bottom: -8px;
   transform: rotate(-4deg);
 }
 
@@ -159,6 +161,7 @@
 }
 
 .modes {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -295,7 +298,8 @@
   text-decoration: underline;
 }
 
-@media (max-width: 760px) {
+/* below this the tags don't fit beside the cards */
+@media (max-width: 1139px) {
   .menu-tag {
     display: none;
   }

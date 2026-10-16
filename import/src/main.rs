@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::writeln;
 
 #[derive(Debug)]
 struct City {
@@ -124,17 +123,6 @@ fn main() -> std::io::Result<()> {
 
     println!("names: {}, cities: {}", name_rows.len(), city_rows.len());
     println!("last city id: {}", next_city_id - 1);
-
-    if let Some(n) = name_rows
-        .iter()
-        .find(|n| n.name.to_lowercase() == "santa cruz")
-    {
-        println!("{:?}", n);
-        let start = (n.first_city - 1) as usize;
-        for (id, c) in &city_rows[start..start + n.city_count as usize] {
-            println!("  {id}: {} ({})", c.name, c.country);
-        }
-    }
 
     let name_values: Vec<String> = name_rows
         .iter()

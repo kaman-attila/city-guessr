@@ -5,10 +5,10 @@ import {
   getHistogram,
   startDaily,
   submitDailyGuess,
-  type DailyRound,
   type GuessResult,
   type Histogram,
   type LatLon,
+  type NextRound,
   type Units,
 } from './api'
 import TopBar, { RoundDots } from './TopBar'
@@ -27,26 +27,47 @@ const ROUNDS = 5
 type DailyGameState =
   | { phase: 'intro' }
   | { phase: 'loading' }
-  | { phase: 'guessing'; round: DailyRound }
-  | { phase: 'result'; round: DailyRound; result: GuessResult; next: DailyRound | null }
+  | { phase: 'guessing'; round: NextRound }
+  | { phase: 'result'; round: NextRound; result: GuessResult; next: NextRound | null }
   | { phase: 'finished'; histogram: Histogram }
   | { phase: 'error'; message: string }
 
 type Props = {
   units: Units
   dark: boolean
+  signedIn: boolean
   account: ReactNode
   onExit: () => void
   onFinished: () => void
   onFreeplay: () => void
 }
 
-export default function Daily({ units, dark, account, onExit, onFinished, onFreeplay }: Props) {
+export default function Daily({
+  units,
+  dark,
+  signedIn,
+  account,
+  onExit,
+  onFinished,
+  onFreeplay,
+}: Props) {
   const [state, setState] = useState<DailyGameState>({ phase: 'intro' })
   const [date, setDate] = useState('')
   const [total, setTotal] = useState(0)
   const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
   const [rounds, setRounds] = useState<RoundScore[]>([])
+  const [wasSignedIn, setWasSignedIn] = useState(signedIn)
+
+  // after logging out this browser is a different player, so the old game and results no longer apply
+  if (signedIn !== wasSignedIn) {
+    setWasSignedIn(signedIn)
+    if (!signedIn) {
+      setState({ phase: 'intro' })
+      setTotal(0)
+      setPendingGuess(null)
+      setRounds([])
+    }
+  }
 
   function fail(err: unknown) {
     setState({ phase: 'error', message: (err as Error).message })

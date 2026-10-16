@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { type LatLon, type GuessResult, type Units } from './api'
-import type { FeatureCollection } from 'geojson'
+import type { Feature, FeatureCollection } from 'geojson'
 import * as maplibregl from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { MinusIcon, PlusIcon } from './icons'
@@ -18,6 +18,8 @@ type Props = {
   units: Units
 }
 
+type LineData = Feature | FeatureCollection
+
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
 const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
@@ -28,9 +30,9 @@ function unwrapLon(lon: number, nearLon: number): number {
   return lon
 }
 
-function addGuessLine(map: maplibregl.Map) {
+function addGuessLine(map: maplibregl.Map, data: LineData) {
   if (map.getSource('guess-line')) return
-  map.addSource('guess-line', { type: 'geojson', data: EMPTY })
+  map.addSource('guess-line', { type: 'geojson', data })
   map.addLayer({
     id: 'guess-line',
     type: 'line',
@@ -71,6 +73,8 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
   const cityMarkersRef = useRef<maplibregl.Marker[]>([])
   const styleUrl = dark ? DARK_STYLE : LIGHT_STYLE
   const styleRef = useRef(styleUrl)
+  // setStyle drops all sources, so remember the line to re-add it after a theme switch
+  const lineDataRef = useRef<LineData>(EMPTY)
 
   useEffect(() => {
     onMapClickRef.current = onMapClick
@@ -95,7 +99,7 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
     })
     mapRef.current = map
 
-    map.on('style.load', () => addGuessLine(map))
+    map.on('style.load', () => addGuessLine(map, lineDataRef.current))
 
     map.on('click', (e) => {
       const { lat, lng } = e.lngLat.wrap()
@@ -138,7 +142,11 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
     cityMarkersRef.current.forEach((m) => m.remove())
     cityMarkersRef.current = []
     const line = map.getSource('guess-line') as maplibregl.GeoJSONSource | undefined
-    line?.setData(EMPTY)
+    const setLine = (data: LineData) => {
+      lineDataRef.current = data
+      line?.setData(data)
+    }
+    setLine(EMPTY)
 
     if (!result || !guess) return
 
@@ -153,7 +161,7 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
     const nearest = result.cities[result.closest]
     const nearestLon = unwrapLon(nearest.lon, guess.lon)
 
-    line?.setData({
+    setLine({
       type: 'Feature',
       properties: {},
       geometry: {

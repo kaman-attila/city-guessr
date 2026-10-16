@@ -25,13 +25,6 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay }: Props)
   return (
     <div className="menu">
       <Globe className="menu-globe" />
-      {TAGS.map((tag) => (
-        <div key={tag.name} className={`menu-tag ${tag.spot}`} aria-hidden="true">
-          <PinIcon size={18} className={tag.pin} />
-          {tag.name}
-          {tag.count !== null && <span className="mono">*{tag.count}</span>}
-        </div>
-      ))}
 
       <TopBar account={account} />
 
@@ -54,6 +47,13 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay }: Props)
         </p>
 
         <div className="modes">
+          {TAGS.map((tag) => (
+            <div key={tag.name} className={`menu-tag ${tag.spot}`} aria-hidden="true">
+              <PinIcon size={18} className={tag.pin} />
+              {tag.name}
+              {tag.count !== null && <span className="mono">*{tag.count}</span>}
+            </div>
+          ))}
           <button className="mode mode-daily" onClick={onDaily}>
             <span className="mode-row">
               <span className="mode-icon">

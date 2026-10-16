@@ -1,6 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import MapView from './MapView'
-import { getRound, submitGuess, type GuessResult, type LatLon, type Round, type Units } from './api'
+import {
+  startFreeplay,
+  submitFreeplayGuess,
+  type GuessResult,
+  type LatLon,
+  type NextRound,
+  type Units,
+} from './api'
 import TopBar, { RoundDots } from './TopBar'
 import { InfinityIcon, PlayIcon, ReplayIcon } from './icons'
 import {
@@ -17,8 +24,8 @@ const ROUNDS = 5
 type GameState =
   | { phase: 'start' }
   | { phase: 'loading' }
-  | { phase: 'guessing'; round: Round }
-  | { phase: 'result'; round: Round; result: GuessResult }
+  | { phase: 'guessing'; round: NextRound }
+  | { phase: 'result'; round: NextRound; result: GuessResult; next: NextRound | null }
   | { phase: 'finished' }
   | { phase: 'error'; message: string }
 
@@ -27,30 +34,26 @@ type Props = {
   dark: boolean
   account: ReactNode
   onExit: () => void
-  onFinished: (total: number) => void
+  onFinished: () => void
 }
 
 export default function Freeplay({ units, dark, account, onExit, onFinished }: Props) {
   const [state, setState] = useState<GameState>({ phase: 'start' })
-  const [roundNumber, setRoundNumber] = useState(1)
+  const [gameId, setGameId] = useState('')
   const [total, setTotal] = useState(0)
   const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
 
-  async function startRound(n: number) {
+  async function startGame() {
     setState({ phase: 'loading' })
     setPendingGuess(null)
+    setTotal(0)
     try {
-      const round = await getRound(n)
-      setRoundNumber(n)
-      setState({ phase: 'guessing', round })
+      const game = await startFreeplay()
+      setGameId(game.game_id)
+      setState({ phase: 'guessing', round: game.next })
     } catch (err) {
       setState({ phase: 'error', message: (err as Error).message })
     }
-  }
-
-  function startGame() {
-    setTotal(0)
-    startRound(1)
   }
 
   async function guess(lat: number, lon: number) {
@@ -58,20 +61,23 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
     const round = state.round
     setState({ phase: 'loading' })
     try {
-      const result = await submitGuess(round.name_id, lat, lon)
-      setTotal((t) => t + result.score)
-      setState({ phase: 'result', round, result })
+      const res = await submitFreeplayGuess(gameId, lat, lon)
+      setTotal(res.total)
+      setState({ phase: 'result', round, result: res.result, next: res.next })
     } catch (err) {
       setState({ phase: 'error', message: (err as Error).message })
     }
   }
 
   function next() {
-    if (roundNumber < ROUNDS) {
-      startRound(roundNumber + 1)
+    if (state.phase !== 'result') return
+    if (state.next) {
+      setPendingGuess(null)
+      setState({ phase: 'guessing', round: state.next })
     } else {
+      setPendingGuess(null)
       setState({ phase: 'finished' })
-      onFinished(total)
+      onFinished()
     }
   }
 
@@ -135,7 +141,11 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
         onHome={onExit}
         center={
           inGame ? (
-            <RoundDots round={roundNumber} total={ROUNDS} answered={state.phase === 'result'} />
+            <RoundDots
+              round={state.round.round}
+              total={ROUNDS}
+              answered={state.phase === 'result'}
+            />
           ) : null
         }
         score={inGame ? total : null}
@@ -169,7 +179,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
                 result={state.result}
                 units={units}
                 placeName={state.round.name}
-                nextLabel={'Next round'}
+                nextLabel={state.next ? 'Next round' : 'See total'}
                 onNext={next}
               />
             </>

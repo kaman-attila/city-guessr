@@ -50,23 +50,19 @@ export default function DailyResults({ date, total, histogram, rounds, onFreepla
 
       {rounds && (
         <ol className="round-chips">
-          {rounds && (
-            <ol className="round-chips">
-              {rounds.map((r, i) => (
-                <li key={i} className="round-chip">
-                  <span className="round-chip-top">
-                    <span className="mono">ROUND {i + 1}</span>
-                    {r.score === 1000 && <span className="perfect">PERFECT</span>}
-                  </span>
-                  <span className="round-chip-city">{r.name}</span>
-                  <span className="mono round-chip-score">{r.score}</span>
-                  <div className="meter">
-                    <div style={{ width: `${r.score / 10}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
+          {rounds.map((r, i) => (
+            <li key={i} className="round-chip">
+              <span className="round-chip-top">
+                <span className="mono">ROUND {i + 1}</span>
+                {r.score === 1000 && <span className="perfect">PERFECT</span>}
+              </span>
+              <span className="round-chip-city">{r.name}</span>
+              <span className="mono round-chip-score">{r.score}</span>
+              <div className="meter">
+                <div style={{ width: `${r.score / 10}%` }} />
+              </div>
+            </li>
+          ))}
         </ol>
       )}
 

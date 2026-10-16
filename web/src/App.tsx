@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Daily from './Daily'
 import Freeplay from './Freeplay'
-import { getMe, submitFreeplayScore, updateSettings, type Profile } from './api'
+import { getMe, updateSettings, type Profile } from './api'
 import { isDark, loadLocalSettings, saveLocalSettings, type Settings } from './settings'
 import AccountMenu from './AccountMenu'
 import Menu from './Menu'
@@ -12,6 +12,11 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [settings, setSettings] = useState<Settings>(loadLocalSettings)
+
+  function applyProfile(p: Profile | null) {
+    setProfile(p)
+    if (p) setSettings({ theme: p.theme, units: p.units })
+  }
 
   useEffect(() => {
     getMe()
@@ -28,13 +33,14 @@ export default function App() {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
   }, [dark])
 
-  function applyProfile(p: Profile | null) {
-    setProfile(p)
-    if (p) setSettings({ theme: p.theme, units: p.units })
-  }
-
   async function refreshProfile() {
     applyProfile(await getMe())
+  }
+
+  async function loggedIn(isNew: boolean) {
+    // a new account starts with default settings, so keep what the guest already picked
+    if (isNew) await updateSettings(settings).catch(() => null)
+    await refreshProfile()
   }
 
   async function changeSettings(change: Partial<Settings>) {
@@ -42,12 +48,10 @@ export default function App() {
     if (profile) {
       try {
         setProfile(await updateSettings(change))
-      } catch {}
+      } catch {
+        // the change is still applied and saved locally
+      }
     }
-  }
-
-  async function freeplayFinished(total: number) {
-    if (profile) setProfile(await submitFreeplayScore(total))
   }
 
   const back = () => setScreen('menu')
@@ -57,7 +61,7 @@ export default function App() {
       profile={profile}
       settings={settings}
       onSettingsChange={changeSettings}
-      onLoggedIn={refreshProfile}
+      onLoggedIn={loggedIn}
       onLoggedOut={() => setProfile(null)}
     />
   )
@@ -67,6 +71,7 @@ export default function App() {
       <Daily
         units={settings.units}
         dark={dark}
+        signedIn={profile !== null}
         account={accountButton}
         onExit={back}
         onFinished={refreshProfile}
@@ -80,7 +85,7 @@ export default function App() {
         dark={dark}
         account={accountButton}
         onExit={back}
-        onFinished={freeplayFinished}
+        onFinished={refreshProfile}
       />
     )
 

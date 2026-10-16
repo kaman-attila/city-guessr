@@ -22,6 +22,16 @@
   height: 36px;
 }
 
+@media (max-width: 520px) {
+  .account-btn {
+    padding: 0 5px;
+  }
+
+  .account-chevron {
+    display: none;
+  }
+}
+
 .avatar-guest {
   background: var(--surface2);
   color: var(--text);

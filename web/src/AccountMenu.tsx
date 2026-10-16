@@ -8,7 +8,7 @@ type Props = {
   profile: Profile | null
   settings: Settings
   onSettingsChange: (change: Partial<Settings>) => void
-  onLoggedIn: () => Promise<void>
+  onLoggedIn: (isNew: boolean) => Promise<void>
   onLoggedOut: () => void
 }
 
@@ -75,7 +75,7 @@ export default function AccountMenu({
         await login(email, password)
       }
       setPassword('')
-      await onLoggedIn()
+      await onLoggedIn(mode === 'register')
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -85,6 +85,8 @@ export default function AccountMenu({
 
   async function handleLogout() {
     await logout().catch(() => {})
+    setMode('login')
+    setError(null)
     onLoggedOut()
   }
 
@@ -109,7 +111,7 @@ export default function AccountMenu({
             <UserIcon />
           </span>
         )}
-        <ChevronDownIcon size={18} />
+        <ChevronDownIcon size={18} className="account-chevron" />
       </button>
 
       {open && (
