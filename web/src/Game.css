@@ -61,8 +61,10 @@
   transition: transform 0.15s ease;
 }
 
-.fab:hover:not(:disabled) {
-  transform: scale(1.06);
+@media (hover: hover) {
+  .fab:hover:not(:disabled) {
+    transform: scale(1.06);
+  }
 }
 
 .fab:disabled {

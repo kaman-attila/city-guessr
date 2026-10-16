@@ -61,6 +61,7 @@ body {
 
 .screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -79,6 +80,7 @@ body {
   width: 100%;
   max-width: 1280px;
   height: min(600px, 70vh);
+  height: min(600px, 70dvh);
   border-radius: 28px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -186,14 +188,4 @@ a {
     animation: none !important;
     transition: none !important;
   }
-}
-
-.histogram .bar {
-  flex: 1;
-  min-height: 2px;
-  background: #cbd5e1;
-}
-
-.histogram .bar.you {
-  background: #16a34a;
 }

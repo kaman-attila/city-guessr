@@ -1,6 +1,7 @@
 .menu {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -184,10 +185,6 @@
   transition: transform 0.2s ease;
 }
 
-.mode:hover {
-  transform: translateY(-4px) rotate(-1deg);
-}
-
 .mode-daily {
   background: var(--accent);
   border-color: var(--accent);
@@ -298,9 +295,14 @@
   text-decoration: underline;
 }
 
-/* below this the tags don't fit beside the cards */
 @media (max-width: 1139px) {
   .menu-tag {
     display: none;
+  }
+}
+
+@media (hover: hover) {
+  .mode:hover {
+    transform: translateY(-4px) rotate(-1deg);
   }
 }

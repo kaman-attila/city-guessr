@@ -74,7 +74,6 @@ struct NameRow {
     city_count: u32,
 }
 
-
 #[derive(Serialize, Deserialize)]
 struct CityRow {
     name: String,
@@ -232,7 +231,10 @@ async fn find_name(db: &D1Database, id: u32) -> worker::Result<Option<NameRow>> 
         .await
 }
 
-async fn random_name_for_round(db: &D1Database, round: u32) -> std::result::Result<NameRow, AppError> {
+async fn random_name_for_round(
+    db: &D1Database,
+    round: u32,
+) -> std::result::Result<NameRow, AppError> {
     let (min, max) = game::id_range_for_round(round)
         .ok_or_else(|| AppError::Internal(format!("no id range for round {round}")))?;
     let id = random_id(min, max);
