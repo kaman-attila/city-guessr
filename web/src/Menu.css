@@ -20,57 +20,8 @@
   stroke-width: 1.5;
 }
 
-.menu-tag {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px 8px 10px;
-  border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
-  font-weight: 700;
-  font-size: 15px;
-  white-space: nowrap;
-}
-
-.menu-tag .mono {
-  font-size: 13px;
-  color: var(--muted);
-}
-
 .pin-accent {
   color: var(--accent);
-}
-
-.pin-sun {
-  color: var(--sun);
-}
-
-/* tags hang off the sides of the mode cards, so they never cover the title */
-.tag-1 {
-  right: calc(100% + 56px);
-  top: -24px;
-  transform: rotate(-6deg);
-}
-
-.tag-2 {
-  left: calc(100% + 44px);
-  top: 4px;
-  transform: rotate(5deg);
-}
-
-.tag-3 {
-  right: calc(100% + 28px);
-  bottom: 12px;
-  transform: rotate(4deg);
-}
-
-.tag-4 {
-  left: calc(100% + 72px);
-  bottom: -8px;
-  transform: rotate(-4deg);
 }
 
 .menu-main {
@@ -84,28 +35,6 @@
   gap: 26px;
   padding: 12px 24px 40px;
   text-align: center;
-}
-
-.menu-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.menu-kicker-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--accent);
 }
 
 .menu-title {
@@ -162,7 +91,6 @@
 }
 
 .modes {
-  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -206,7 +134,7 @@
 }
 
 .mode-daily .mode-icon {
-  background: rgba(26, 11, 8, 0.12);
+  background: rgba(11, 26, 5, 0.12);
 }
 
 .mode-free .mode-icon {
@@ -293,12 +221,6 @@
 
 .menu-footer a:hover {
   text-decoration: underline;
-}
-
-@media (max-width: 1139px) {
-  .menu-tag {
-    display: none;
-  }
 }
 
 @media (hover: hover) {

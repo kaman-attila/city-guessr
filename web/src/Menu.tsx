@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import TopBar, { Wordmark } from './TopBar'
-import { ArrowRightIcon, CalendarIcon, ClockIcon, InfinityIcon, PinIcon } from './icons'
+import { ArrowRightIcon, CalendarIcon, ClockIcon, InfinityIcon } from './icons'
 import { useCountdown } from './useCountdown'
 import './Menu.css'
 import Globe from './Globe'
@@ -13,13 +13,6 @@ type Props = {
   onPrivacy: () => void
 }
 
-const TAGS = [
-  { name: 'Santa Cruz', count: 15, pin: 'pin-accent', spot: 'tag-1' },
-  { name: 'Springfield', count: 11, pin: 'pin-sun', spot: 'tag-2' },
-  { name: 'Victoria', count: 13, pin: 'pin-sun', spot: 'tag-3' },
-  { name: 'Lyon', count: null, pin: 'pin-accent', spot: 'tag-4' },
-]
-
 export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivacy }: Props) {
   const countdown = useCountdown()
 
@@ -30,11 +23,6 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivac
       <TopBar account={account} />
 
       <main className="menu-main">
-        <div className="menu-kicker">
-          <span className="menu-kicker-dot" />
-          Daily geography game
-        </div>
-
         <h1 className="menu-title">
           <Wordmark />
           <svg className="menu-title-pin" viewBox="0 0 40 48" aria-hidden="true">
@@ -48,13 +36,6 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivac
         </p>
 
         <div className="modes">
-          {TAGS.map((tag) => (
-            <div key={tag.name} className={`menu-tag ${tag.spot}`} aria-hidden="true">
-              <PinIcon size={18} className={tag.pin} />
-              {tag.name}
-              {tag.count !== null && <span className="mono">*{tag.count}</span>}
-            </div>
-          ))}
           <button className="mode mode-daily" onClick={onDaily}>
             <span className="mode-row">
               <span className="mode-icon">

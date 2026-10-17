@@ -38,7 +38,7 @@ function addGuessLine(map: maplibregl.Map, data: LineData) {
     type: 'line',
     source: 'guess-line',
     layout: { 'line-cap': 'round' },
-    paint: { 'line-color': '#ff6b57', 'line-width': 3, 'line-dasharray': [2, 2] },
+    paint: { 'line-color': '#4fa318', 'line-width': 3, 'line-dasharray': [2, 2] },
   })
 }
 

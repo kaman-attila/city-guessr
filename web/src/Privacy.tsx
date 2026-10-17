@@ -17,20 +17,21 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
             password itself), your best score and your theme and unit settings.
           </li>
           <li>
-            <b>Login:</b> a <code>session</code> cookie for 30 days. The server only keeps a hash of it.
+            <b>Login:</b> a <code>session</code> cookie for 30 days. The server only keeps a hash of
+            it.
           </li>
           <li>
-            <b>Guests:</b> a <code>guest_id</code> cookie with a random id for one year, so the daily
-            challenge can only be played once.
+            <b>Guests:</b> a <code>guest_id</code> cookie with a random id for one year, so the
+            daily challenge can only be played once.
           </li>
           <li>
-            <b>Daily results:</b> which player (account or guest id) played on which day, and the score.
-            The histogram only counts how many players landed in each score range.
+            <b>Daily results:</b> which player (account or guest id) played on which day, and the
+            score. The histogram only counts how many players landed in each score range.
           </li>
           <li>
-            <b>Abuse protection:</b> a hash of your IP address combined with a secret and the date, to
-            count at most 3 guest results per address per day. It can't be turned back into your IP
-            address, and it changes every day.
+            <b>Abuse protection:</b> a hash of your IP address combined with a secret and the date,
+            to count at most 3 guest results per address per day. It can't be turned back into your
+            IP address, and it changes every day.
           </li>
           <li>
             <b>Only in your browser:</b> your theme and unit settings.
@@ -41,18 +42,20 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
         <h2>Who else is involved</h2>
         <ul>
           <li>
-            <b>Cloudflare</b> hosts the website and database, and processes every request, including your
-            IP address.
+            <b>Cloudflare</b> hosts the website and database, and processes every request, including
+            your IP address.
           </li>
           <li>
-            <b>OpenFreeMap</b> serves the map, so your browser connects to its servers when the map loads.
+            <b>OpenFreeMap</b> serves the map, so your browser connects to its servers when the map
+            loads.
           </li>
         </ul>
 
         <h2>Your rights</h2>
         <p>
-          You can ask to see or delete your data at any time by emailing the creator. Logging out ends
-          your session, and deleting this site's cookies removes your guest id from your browser.
+          You can ask to see or delete your data at any time by emailing the creator. Logging out
+          ends your session, and deleting this site's cookies removes your guest id from your
+          browser.
         </p>
       </main>
     </div>
