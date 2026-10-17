@@ -97,9 +97,16 @@ struct NextRound {
 }
 
 #[derive(Serialize)]
+struct PlayedRound {
+    name: String,
+    score: Option<u32>,
+}
+
+#[derive(Serialize)]
 struct DailyState {
     date: String,
     total: u32,
+    history: Vec<PlayedRound>,
     next: Option<NextRound>,
 }
 
@@ -107,6 +114,13 @@ struct DailyState {
 struct PlayRow {
     round: u32,
     score: u32,
+}
+
+#[derive(Deserialize)]
+struct PlayHistoryRow {
+    round: u32,
+    score: u32,
+    scores: String,
 }
 
 #[derive(Deserialize)]
@@ -360,34 +374,55 @@ async fn daily_start(
         .run()
         .await?;
 
-    let row: PlayRow = db
-        .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
+    let row: PlayHistoryRow = db
+        .prepare("SELECT round, score, scores FROM daily_plays WHERE player_id = ?1 AND date = ?2")
         .bind(&[player_id.as_str().into(), date.as_str().into()])?
         .first(None)
         .await?
         .ok_or_else(|| AppError::Internal("daily row missing after insert".to_string()))?;
 
-    let state = if row.round >= 5 {
-        DailyState {
-            date,
-            total: row.score,
-            next: None,
-        }
-    } else {
-        let secret = env.secret("DAILY_SECRET")?.to_string();
-        let ids = game::daily_name_ids(game::daily_seed(&secret, &date));
+    let secret = env.secret("DAILY_SECRET")?.to_string();
+    let ids = game::daily_name_ids(game::daily_seed(&secret, &date));
+
+    // rows started before per-round scores were stored have fewer entries than rounds; show those as unknown
+    let mut scores: Vec<Option<u32>> = row
+        .scores
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.parse().ok())
+        .collect();
+    if scores.len() != row.round as usize {
+        scores = vec![None; row.round as usize];
+    }
+
+    let mut history = Vec::with_capacity(scores.len());
+    for (i, score) in scores.into_iter().enumerate() {
+        let name = find_name(&db, ids[i])
+            .await?
+            .ok_or_else(|| AppError::Internal("daily name id not found".to_string()))?;
+        history.push(PlayedRound {
+            name: name.name,
+            score,
+        });
+    }
+
+    let next = if row.round < 5 {
         let name = find_name(&db, ids[row.round as usize])
             .await?
             .ok_or_else(|| AppError::Internal("daily name id not found".to_string()))?;
+        Some(NextRound {
+            round: row.round + 1,
+            name: name.name,
+        })
+    } else {
+        None
+    };
 
-        DailyState {
-            date,
-            total: row.score,
-            next: Some(NextRound {
-                round: row.round + 1,
-                name: name.name,
-            }),
-        }
+    let state = DailyState {
+        date,
+        total: row.score,
+        history,
+        next,
     };
 
     with_cookie(Json(state), set_cookie)
@@ -428,7 +463,8 @@ async fn daily_guess(
 
     let updated: PlayRow = db
         .prepare(
-            "UPDATE daily_plays SET round = round + 1, score = score + ?1 \
+            "UPDATE daily_plays SET round = round + 1, score = score + ?1, \
+             scores = CASE WHEN scores = '' THEN ?5 ELSE scores || ',' || ?5 END \
              WHERE player_id = ?2 AND date = ?3 AND round = ?4 \
              RETURNING round, score",
         )
@@ -437,6 +473,7 @@ async fn daily_guess(
             player_id.as_str().into(),
             req.date.as_str().into(),
             row.round.into(),
+            result.score.to_string().into(),
         ])?
         .first(None)
         .await?

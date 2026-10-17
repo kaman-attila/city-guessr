@@ -106,7 +106,12 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
       onMapClickRef.current(lat, lng)
     })
 
+    // the card's height follows the layout (e.g. when the round tracker appears), not just the window
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(containerRef.current)
+
     return () => {
+      resizeObserver.disconnect()
       markerRef.current?.remove()
       markerRef.current = null
       cityMarkersRef.current.forEach((m) => m.remove())

@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px 20px;
-  padding: 18px 28px;
+  padding: 14px 28px;
 }
 
 .topbar-side {
@@ -40,37 +40,6 @@
   border: 1px solid var(--line);
 }
 
-.pill-unit {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.star {
-  color: var(--sun);
-}
-
-.dots {
-  display: flex;
-  gap: 8px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--line);
-}
-
-.dot.done {
-  background: var(--accent);
-}
-
-.dot.current {
-  background: var(--surface);
-  box-shadow: 0 0 0 3px var(--accent);
-}
-
 .avatar {
   width: 100%;
   height: 100%;
@@ -84,6 +53,14 @@
   font-size: 15px;
 }
 
+/* the centre item (round tracker) moves to its own row below the buttons */
+@media (max-width: 980px) {
+  .topbar-center {
+    order: 3;
+    width: 100%;
+  }
+}
+
 @media (max-width: 760px) {
   .topbar {
     padding: 14px 16px;
@@ -94,22 +71,8 @@
   }
 }
 
-/* phones: keep everything on one row */
 @media (max-width: 520px) {
   .topbar {
-    gap: 8px;
-  }
-
-  .topbar-side {
-    gap: 8px;
-  }
-
-  .pill {
-    padding: 0 12px;
-  }
-
-  .pill .dots,
-  .pill-unit {
-    display: none;
+    gap: 10px 8px;
   }
 }

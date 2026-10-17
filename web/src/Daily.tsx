@@ -11,13 +11,13 @@ import {
   type NextRound,
   type Units,
 } from './api'
-import TopBar, { RoundDots } from './TopBar'
+import TopBar from './TopBar'
+import RoundTracker from './RoundTracker'
 import {
   CityHeading,
   MapHint,
   GuessControls,
   CenterCard,
-  ResultLegend,
   ResultPanel,
 } from './GameParts'
 import { CalendarIcon, PlayIcon } from './icons'
@@ -88,6 +88,7 @@ export default function Daily({
       const s = await startDaily()
       setDate(s.date)
       setTotal(s.total)
+      setRounds(s.history)
       if (s.next) {
         setPendingGuess(null)
         setState({ phase: 'guessing', round: s.next })
@@ -163,17 +164,21 @@ export default function Daily({
 
   const overlay = renderOverlay()
   const round = state.phase === 'guessing' || state.phase === 'result' ? state.round : null
+  const showTracker = round !== null || (state.phase === 'loading' && rounds.length > 0)
 
   return (
     <div className="screen">
       <TopBar
         onHome={onExit}
         center={
-          round !== null ? (
-            <RoundDots round={round.round} total={ROUNDS} answered={state.phase === 'result'} />
+          showTracker ? (
+            <RoundTracker
+              scores={rounds.map((r) => r.score)}
+              current={state.phase === 'guessing' ? state.round.round : null}
+              total={total}
+            />
           ) : null
         }
-        score={round !== null ? total : null}
         account={account}
       />
       {state.phase === 'finished' ? (
@@ -186,10 +191,7 @@ export default function Daily({
         />
       ) : (
         <main className="stage">
-          <CityHeading
-            kicker={state.phase === 'result' ? 'Daily · you found' : 'Daily · find'}
-            name={round !== null ? round.name : null}
-          />
+          <CityHeading name={round !== null ? round.name : null} />
           <div className="map-card">
             <MapView
               guess={pendingGuess}
@@ -207,16 +209,13 @@ export default function Daily({
               />
             )}
             {state.phase === 'result' && (
-              <>
-                <ResultLegend sameName={state.result.cities.length > 1} />
-                <ResultPanel
-                  result={state.result}
-                  units={units}
-                  placeName={state.round.name}
-                  nextLabel={state.next ? 'Next round' : 'See results'}
-                  onNext={next}
-                />
-              </>
+              <ResultPanel
+                result={state.result}
+                units={units}
+                placeName={state.round.name}
+                nextLabel={state.next ? 'Next round' : 'See results'}
+                onNext={next}
+              />
             )}
             {overlay && <CenterCard>{overlay}</CenterCard>}
           </div>

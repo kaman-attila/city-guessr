@@ -1,15 +1,12 @@
 import type { ReactNode } from 'react'
-import { HomeIcon, StarIcon } from './icons'
+import { HomeIcon } from './icons'
 import './TopBar.css'
 
 type Props = {
   onHome?: () => void
   center?: ReactNode
-  score?: number | null
   account: ReactNode
 }
-
-type DotsProps = { round: number; total: number; answered: boolean }
 
 export function Wordmark({ className = '' }: { className?: string }) {
   return (
@@ -19,7 +16,7 @@ export function Wordmark({ className = '' }: { className?: string }) {
   )
 }
 
-export default function TopBar({ onHome, center, score, account }: Props) {
+export default function TopBar({ onHome, center, account }: Props) {
   return (
     <header className="topbar">
       <div className="topbar-side">
@@ -33,38 +30,9 @@ export default function TopBar({ onHome, center, score, account }: Props) {
         )}
       </div>
 
-      {center}
+      {center && <div className="topbar-center">{center}</div>}
 
-      <div className="topbar-side">
-        {score != null && (
-          <div className="pill">
-            <StarIcon className="star" size={18} />
-            <span className="mono">{score}</span>
-            <span className="pill-unit">pts</span>
-          </div>
-        )}
-        {account}
-      </div>
+      <div className="topbar-side">{account}</div>
     </header>
-  )
-}
-
-export function RoundDots({ round, total, answered }: DotsProps) {
-  const dots = Array.from({ length: total }, (_, i) => {
-    let state = ''
-    if (i < round - 1) state = 'done'
-    else if (i === round - 1) state = answered ? 'done' : 'current'
-    return <span key={i} className={`dot ${state}`} />
-  })
-
-  return (
-    <div className="pill">
-      <span className="dots" aria-hidden="true">
-        {dots}
-      </span>
-      <span className="mono">
-        Round {round}/{total}
-      </span>
-    </div>
   )
 }

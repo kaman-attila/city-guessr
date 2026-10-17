@@ -5,7 +5,8 @@ import { ClockIcon, InfinityIcon } from './icons'
 import { useCountdown } from './useCountdown'
 import './DailyResults.css'
 
-export type RoundScore = { name: string; score: number }
+/** score is null for rounds played before per-round scores were stored */
+export type RoundScore = { name: string; score: number | null }
 
 type Props = {
   date: string
@@ -57,9 +58,9 @@ export default function DailyResults({ date, total, histogram, rounds, onFreepla
                 {r.score === 1000 && <span className="perfect">PERFECT</span>}
               </span>
               <span className="round-chip-city">{r.name}</span>
-              <span className="mono round-chip-score">{r.score}</span>
+              <span className="mono round-chip-score">{r.score ?? '–'}</span>
               <div className="meter">
-                <div style={{ width: `${r.score / 10}%` }} />
+                <div style={{ width: `${(r.score ?? 0) / 10}%` }} />
               </div>
             </li>
           ))}

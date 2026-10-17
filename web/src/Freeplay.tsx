@@ -8,18 +8,16 @@ import {
   type NextRound,
   type Units,
 } from './api'
-import TopBar, { RoundDots } from './TopBar'
+import TopBar from './TopBar'
+import RoundTracker from './RoundTracker'
 import { InfinityIcon, PlayIcon, ReplayIcon } from './icons'
 import {
   CityHeading,
   MapHint,
   GuessControls,
   CenterCard,
-  ResultLegend,
   ResultPanel,
 } from './GameParts'
-
-const ROUNDS = 5
 
 type GameState =
   | { phase: 'start' }
@@ -41,12 +39,14 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
   const [state, setState] = useState<GameState>({ phase: 'start' })
   const [gameId, setGameId] = useState('')
   const [total, setTotal] = useState(0)
+  const [scores, setScores] = useState<number[]>([])
   const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
 
   async function startGame() {
     setState({ phase: 'loading' })
     setPendingGuess(null)
     setTotal(0)
+    setScores([])
     try {
       const game = await startFreeplay()
       setGameId(game.game_id)
@@ -63,6 +63,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
     try {
       const res = await submitFreeplayGuess(gameId, lat, lon)
       setTotal(res.total)
+      setScores((s) => [...s, res.result.score])
       setState({ phase: 'result', round, result: res.result, next: res.next })
     } catch (err) {
       setState({ phase: 'error', message: (err as Error).message })
@@ -131,31 +132,31 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
     }
   }
 
-  const inGame = state.phase === 'guessing' || state.phase === 'result'
   const overlay = renderOverlay()
   const cityName = state.phase === 'guessing' || state.phase === 'result' ? state.round.name : null
+  const showTracker =
+    state.phase === 'guessing' ||
+    state.phase === 'result' ||
+    state.phase === 'finished' ||
+    (state.phase === 'loading' && scores.length > 0)
 
   return (
     <div className="screen">
       <TopBar
         onHome={onExit}
         center={
-          inGame ? (
-            <RoundDots
-              round={state.round.round}
-              total={ROUNDS}
-              answered={state.phase === 'result'}
+          showTracker ? (
+            <RoundTracker
+              scores={scores}
+              current={state.phase === 'guessing' ? state.round.round : null}
+              total={total}
             />
           ) : null
         }
-        score={inGame ? total : null}
         account={account}
       />
       <main className="stage">
-        <CityHeading
-          kicker={state.phase === 'result' ? 'Freeplay · you found' : 'Freeplay · find'}
-          name={cityName}
-        />
+        <CityHeading name={cityName} />
         <div className="map-card">
           <MapView
             guess={pendingGuess}
@@ -173,16 +174,13 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
             />
           )}
           {state.phase === 'result' && (
-            <>
-              <ResultLegend sameName={state.result.cities.length > 1} />
-              <ResultPanel
-                result={state.result}
-                units={units}
-                placeName={state.round.name}
-                nextLabel={state.next ? 'Next round' : 'See total'}
-                onNext={next}
-              />
-            </>
+            <ResultPanel
+              result={state.result}
+              units={units}
+              placeName={state.round.name}
+              nextLabel={state.next ? 'Next round' : 'See total'}
+              onNext={next}
+            />
           )}
           {overlay && <CenterCard>{overlay}</CenterCard>}
         </div>

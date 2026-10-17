@@ -12,10 +12,9 @@ type ResultPanelProps = {
   onNext: () => void
 }
 
-export function CityHeading({ kicker, name }: { kicker: string; name: string | null }) {
+export function CityHeading({ name }: { name: string | null }) {
   return (
     <div className="city-heading">
-      <span className="label">{kicker}</span>
       <h1 className="display city-name">{name ?? '\u00a0'}</h1>
     </div>
   )
@@ -94,27 +93,6 @@ export function ResultPanel({ result, units, placeName, nextLabel, onNext }: Res
             {count} places are called {placeName}. The nearest one counts.
           </span>
         </div>
-      )}
-    </div>
-  )
-}
-
-export function ResultLegend({ sameName }: { sameName: boolean }) {
-  return (
-    <div className="map-legend" aria-hidden="true">
-      <span className="legend-chip">
-        <PinIcon size={16} className="pin-accent" />
-        Your pin
-      </span>
-      <span className="legend-chip">
-        <span className="legend-dot nearest" />
-        Nearest
-      </span>
-      {sameName && (
-        <span className="legend-chip">
-          <span className="legend-dot other" />
-          Same name
-        </span>
       )}
     </div>
   )

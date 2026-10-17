@@ -16,7 +16,14 @@ export type GuessResult = {
 
 export type NextRound = { round: number; name: string }
 
-export type DailyState = { date: string; total: number; next: NextRound | null }
+export type PlayedRound = { name: string; score: number | null }
+
+export type DailyState = {
+  date: string
+  total: number
+  history: PlayedRound[]
+  next: NextRound | null
+}
 
 export type FreeplayStart = { game_id: string; next: NextRound }
 

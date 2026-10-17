@@ -11,6 +11,7 @@
   --accent-soft: rgba(79, 163, 24, 0.18);
   --sun: #ffc83d;
   --sun-ink: #241a00;
+  --sun-text: #ffc83d;
   --ink: #0a0f1f;
   --bar: #5e6a96;
   --grid: #1c2752;
@@ -36,6 +37,7 @@
   --accent-soft: rgba(73, 154, 19, 0.16);
   --sun: #f5b400;
   --sun-ink: #241a00;
+  --sun-text: #8a6100;
   --ink: #0d1330;
   --bar: #8590b3;
   --grid: #c6d4ea;
@@ -79,8 +81,10 @@ body {
   position: relative;
   width: 100%;
   max-width: 1280px;
-  height: min(600px, 70vh);
-  height: min(600px, 70dvh);
+  /* fill whatever height the top bar and heading leave, so the screen never scrolls */
+  flex: 1;
+  min-height: 300px;
+  max-height: 760px;
   border-radius: 28px;
   overflow: hidden;
   border: 1px solid var(--line);

@@ -1,7 +1,6 @@
 .map-view {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
 }
 
 .map-view-canvas {
@@ -115,6 +114,49 @@
     transform: scale(1.7);
     opacity: 0;
   }
+}
+
+/* city name popup: MapLibre's default is always white, which hides the light text in dark mode */
+.maplibregl-popup-content {
+  padding: 8px 30px 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+.maplibregl-popup-close-button {
+  top: 2px;
+  right: 4px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.maplibregl-popup-close-button:hover {
+  background: transparent;
+  color: var(--text);
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--surface);
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--surface);
+}
+
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--surface);
+}
+
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--surface);
 }
 
 .line-label {

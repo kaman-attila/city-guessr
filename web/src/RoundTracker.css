@@ -1,0 +1,272 @@
+.tracker {
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.tracker-label {
+  align-self: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 0 2px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+/* difficulty colours, cool to hot; only used for the pips so text contrast doesn't depend on them */
+.level-1 {
+  --level: #38bdf8;
+}
+
+.level-2 {
+  --level: #818cf8;
+}
+
+.level-3 {
+  --level: #e879f9;
+}
+
+.level-4 {
+  --level: #fb7185;
+}
+
+.level-5 {
+  --level: #ef4444;
+}
+
+.tracker-round {
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 6px 5px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tracker-difficulty {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tracker-pips {
+  display: flex;
+  gap: 3px;
+}
+
+.tracker-pips span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.tracker-pips span.on {
+  background: var(--level);
+}
+
+.tracker-pin {
+  width: 20px;
+  height: 24px;
+}
+
+.tracker-pin path {
+  fill: var(--line);
+  stroke: none;
+}
+
+.tracker-pin text {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 900;
+  fill: var(--muted);
+}
+
+.tracker-score {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 18px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+/* answered */
+.tracker-round.done .tracker-pin path {
+  fill: var(--accent);
+}
+
+.tracker-round.done .tracker-pin text {
+  fill: var(--accent-ink);
+}
+
+.tracker-round.done .tracker-score {
+  color: var(--accent-text);
+}
+
+/* playing now */
+.tracker-round.now {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.tracker-round.now .tracker-difficulty,
+.tracker-round.now .tracker-score {
+  color: var(--accent-text);
+}
+
+.tracker-round.now .tracker-pin path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.tracker-round.now .tracker-pin text {
+  fill: var(--accent-text);
+}
+
+/* 1000 points */
+.tracker-round.perfect {
+  border-color: var(--sun);
+  box-shadow:
+    0 0 0 1px var(--sun),
+    0 0 18px -4px var(--sun);
+}
+
+.tracker-round.perfect .tracker-pin path {
+  fill: var(--sun);
+}
+
+.tracker-round.perfect .tracker-pin text {
+  fill: var(--sun-ink);
+}
+
+.tracker-round.perfect .tracker-difficulty,
+.tracker-round.perfect .tracker-score {
+  color: var(--sun-text);
+}
+
+/* not played yet */
+.tracker-round.todo {
+  opacity: 0.6;
+}
+
+.tracker-total {
+  min-width: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.tracker-total-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.tracker-total-value {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.tracker-total-max {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* tablets and phones: the tracker gets its own full-width row under the top bar */
+@media (max-width: 980px) {
+  .tracker {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .tracker-round {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .tracker {
+    gap: 5px;
+    padding: 6px;
+    border-radius: 18px;
+  }
+
+  .tracker-label,
+  .tracker-difficulty {
+    display: none;
+  }
+
+  .tracker-round {
+    gap: 4px;
+    padding: 6px 2px;
+    border-radius: 12px;
+  }
+
+  .tracker-pips {
+    gap: 2px;
+  }
+
+  .tracker-pips span {
+    width: 5px;
+    height: 5px;
+  }
+
+  .tracker-pin {
+    width: 18px;
+    height: 22px;
+  }
+
+  .tracker-score {
+    font-size: 12px;
+  }
+
+  .tracker-score svg {
+    display: none;
+  }
+
+  .tracker-total {
+    min-width: 0;
+    padding: 0 4px;
+  }
+
+  .tracker-total-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+
+  .tracker-total-value {
+    font-size: 17px;
+  }
+
+  .tracker-total-max {
+    font-size: 9px;
+  }
+}
