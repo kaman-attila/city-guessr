@@ -306,3 +306,16 @@
     transform: translateY(-4px) rotate(-1deg);
   }
 }
+
+.footer-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 700;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}

@@ -5,8 +5,9 @@ import { getMe, updateSettings, type Profile } from './api'
 import { isDark, loadLocalSettings, saveLocalSettings, type Settings } from './settings'
 import AccountMenu from './AccountMenu'
 import Menu from './Menu'
+import Privacy from './Privacy'
 
-type Screen = 'menu' | 'daily' | 'freeplay'
+type Screen = 'menu' | 'daily' | 'freeplay' | 'privacy'
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
@@ -38,7 +39,6 @@ export default function App() {
   }
 
   async function loggedIn(isNew: boolean) {
-    // a new account starts with default settings, so keep what the guest already picked
     if (isNew) await updateSettings(settings).catch(() => null)
     await refreshProfile()
   }
@@ -88,6 +88,7 @@ export default function App() {
         onFinished={refreshProfile}
       />
     )
+  if (screen === 'privacy') return <Privacy account={accountButton} onHome={back} />
 
   return (
     <Menu
@@ -95,6 +96,7 @@ export default function App() {
       bestScore={profile?.best_score ?? null}
       onDaily={() => setScreen('daily')}
       onFreeplay={() => setScreen('freeplay')}
+      onPrivacy={() => setScreen('privacy')}
     />
   )
 }

@@ -10,6 +10,7 @@ type Props = {
   bestScore: number | null
   onDaily: () => void
   onFreeplay: () => void
+  onPrivacy: () => void
 }
 
 const TAGS = [
@@ -19,7 +20,7 @@ const TAGS = [
   { name: 'Lyon', count: null, pin: 'pin-accent', spot: 'tag-4' },
 ]
 
-export default function Menu({ account, bestScore, onDaily, onFreeplay }: Props) {
+export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivacy }: Props) {
   const countdown = useCountdown()
 
   return (
@@ -98,6 +99,9 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay }: Props)
       </main>
 
       <footer className="menu-footer">
+        <button className="footer-link" onClick={onPrivacy}>
+          Privacy
+        </button>
         <span>
           Map data ©{' '}
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
@@ -109,7 +113,10 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay }: Props)
           <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">
             GeoNames
           </a>
-          , CC BY 4.0
+          ,{' '}
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+            CC BY 4.0
+          </a>
         </span>
       </footer>
     </div>
