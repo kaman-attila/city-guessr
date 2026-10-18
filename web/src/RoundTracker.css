@@ -198,7 +198,7 @@
 }
 
 /* tablets and phones: the tracker gets its own full-width row under the top bar */
-@media (max-width: 980px) {
+@media (max-width: 1060px) {
   .tracker {
     width: 100%;
     max-width: 640px;

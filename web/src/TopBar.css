@@ -1,18 +1,28 @@
+/* equal side columns keep the centre item on the page's centre line, whatever the sides contain */
 .topbar {
   position: relative;
   z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 12px 20px;
   padding: 14px 28px;
 }
 
 .topbar-side {
+  grid-column: 1;
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.topbar-center {
+  grid-column: 2;
+}
+
+.topbar-side:last-child {
+  grid-column: 3;
+  justify-self: end;
 }
 
 .wordmark {
@@ -53,11 +63,19 @@
   font-size: 15px;
 }
 
-/* the centre item (round tracker) moves to its own row below the buttons */
-@media (max-width: 980px) {
+/* below this the tracker no longer fits between the sides, so it moves to its own row under the buttons */
+@media (max-width: 1060px) {
+  .topbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .topbar-side:last-child {
+    grid-column: 2;
+  }
+
   .topbar-center {
-    order: 3;
-    width: 100%;
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
 

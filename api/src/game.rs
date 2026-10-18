@@ -45,10 +45,12 @@ pub fn distance_in_meters(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 
 pub fn id_range_for_round(round: u32) -> Option<(u32, u32)> {
     match round {
-        1 | 2 => Some((1 as u32, 1000 as u32)),
-        3 | 4 => Some((1 as u32, 10000 as u32)),
-        5 => Some((1 as u32, TOTAL_NAMES)),
-        _ => None,
+        1 => Some((1, 200)),
+        2 => Some((201, 1000)),
+        3 => Some((1001, 5000)),
+        4 => Some((5001, 10000)),
+        5 => Some((10001, TOTAL_NAMES)),
+        _ => None
     }
 }
 
@@ -120,6 +122,20 @@ mod tests {
                 assert!(!ids[..i].contains(&id), "seed {seed}: duplicate id {id}");
             }
         }
+    }
+
+    #[test]
+    fn round_ranges_get_harder_and_cover_every_name() {
+        let mut next_min = 1;
+        for round in 1..=5 {
+            let (min, max) = id_range_for_round(round).unwrap();
+            assert_eq!(min, next_min, "round {round} should start right after round {}", round - 1);
+            assert!(min <= max, "round {round} range is empty");
+            next_min = max + 1;
+        }
+        assert_eq!(next_min - 1, TOTAL_NAMES);
+        assert_eq!(id_range_for_round(0), None);
+        assert_eq!(id_range_for_round(6), None);
     }
 
     #[test]
