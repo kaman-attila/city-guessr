@@ -32,7 +32,7 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivac
         </h1>
 
         <p className="menu-tagline">
-          Find any city on the map. One shared challenge a day, endless rounds in freeplay.
+          Find any city on the map.
         </p>
 
         <div className="modes">
@@ -97,8 +97,12 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivac
           ,{' '}
           <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
             CC BY 4.0
-          </a>
+          </a>{' '}
+          (modified)
         </span>
+        <a href="/licenses.txt" target="_blank" rel="noreferrer">
+          Licenses
+        </a>
       </footer>
     </div>
   )
