@@ -63,6 +63,43 @@ body {
   color: var(--danger);
 }
 
+/* final score beat the player's best */
+.new-best {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--sun);
+  background: color-mix(in srgb, var(--sun) 14%, transparent);
+  box-shadow: 0 0 22px -6px var(--sun);
+  color: var(--sun-text);
+  text-align: left;
+  animation: new-best-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.new-best strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.new-best small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+@keyframes new-best-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
 .screen {
   min-height: 100vh;
   min-height: 100dvh;

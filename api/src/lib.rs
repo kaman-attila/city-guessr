@@ -138,6 +138,8 @@ struct RoundGuessResponse {
     result: GuessResponse,
     total: u32,
     next: Option<NextRound>,
+    /// set when this guess finished the game with a new personal best: the best it replaced
+    previous_best: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -365,9 +367,10 @@ async fn freeplay_guess(
         .await?
         .ok_or(AppError::Conflict("round already answered"))?;
 
+    let mut previous_best = None;
     if next_name.is_none() {
         if let Some(user_id) = auth::current_user_id(&db, &headers).await? {
-            update_best(&db, user_id, updated.score).await?;
+            previous_best = update_best(&db, user_id, updated.score).await?;
         }
     }
 
@@ -378,6 +381,7 @@ async fn freeplay_guess(
             round: updated.round + 1,
             name: n.name,
         }),
+        previous_best,
     }))
 }
 
@@ -516,6 +520,7 @@ async fn daily_guess(
         .await?
         .ok_or(AppError::Conflict("round already answered"))?;
 
+    let mut previous_best = None;
     let next = if updated.round < 5 {
         let name = find_name(&db, ids[updated.round as usize])
             .await?
@@ -528,7 +533,7 @@ async fn daily_guess(
         match &player {
             Player::User(user_id) => {
                 record_finish(&db, &req.date, updated.score, None).await?;
-                update_best(&db, *user_id, updated.score).await?;
+                previous_best = update_best(&db, *user_id, updated.score).await?;
             }
             Player::Guest(_) => {
                 let ip = guest::ip_hash(&headers, &secret, &req.date);
@@ -542,6 +547,7 @@ async fn daily_guess(
         result,
         total: updated.score,
         next,
+        previous_best,
     }))
 }
 
@@ -923,12 +929,33 @@ async fn current_player(db: &D1Database, headers: &HeaderMap) -> worker::Result<
     Ok(guest::read_guest_id(headers).map(Player::Guest))
 }
 
-async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Result<()> {
-    db.prepare("UPDATE users SET best_score = ?1 WHERE id = ?2 AND best_score < ?1")
+/// Raises the user's best score if `score` beats it, and returns the best it replaced.
+async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Result<Option<u32>> {
+    #[derive(Deserialize)]
+    struct BestRow {
+        best_score: u32,
+    }
+    let Some(before) = db
+        .prepare("SELECT best_score FROM users WHERE id = ?1")
+        .bind(&[user_id.into()])?
+        .first::<BestRow>(None)
+        .await?
+    else {
+        return Ok(None);
+    };
+    if score <= before.best_score {
+        return Ok(None);
+    }
+
+    // the WHERE keeps it correct if two games finish at the same moment
+    let raised: Option<BestRow> = db
+        .prepare(
+            "UPDATE users SET best_score = ?1 WHERE id = ?2 AND best_score < ?1 RETURNING best_score",
+        )
         .bind(&[score.into(), user_id.into()])?
-        .run()
+        .first(None)
         .await?;
-    Ok(())
+    Ok(raised.map(|_| before.best_score))
 }
 
 async fn require_user(db: &D1Database, headers: &HeaderMap) -> std::result::Result<u32, AppError> {

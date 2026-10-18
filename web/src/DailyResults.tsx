@@ -2,6 +2,7 @@ import { type Histogram } from './api'
 import Globe from './Globe'
 import HistogramChart from './HistogramChart'
 import { ClockIcon, InfinityIcon } from './icons'
+import { NewBestBadge } from './GameParts'
 import { useCountdown } from './useCountdown'
 import './DailyResults.css'
 
@@ -12,6 +13,8 @@ type Props = {
   total: number
   histogram: Histogram
   rounds: RoundScore[] | null
+  /** the best score this game replaced, or null when it wasn't a new best */
+  previousBest: number | null
   onFreeplay: () => void
 }
 
@@ -24,7 +27,14 @@ function formatDay(date: string): string {
   })
 }
 
-export default function DailyResults({ date, total, histogram, rounds, onFreeplay }: Props) {
+export default function DailyResults({
+  date,
+  total,
+  histogram,
+  rounds,
+  previousBest,
+  onFreeplay,
+}: Props) {
   const countdown = useCountdown()
   const better = histogram.better_than_percent
 
@@ -47,6 +57,8 @@ export default function DailyResults({ date, total, histogram, rounds, onFreepla
           </div>
         )}
       </div>
+
+      {previousBest !== null && <NewBestBadge previous={previousBest} />}
 
       {rounds && (
         <ol className="round-chips">

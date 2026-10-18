@@ -11,7 +11,14 @@ import {
 import TopBar from './TopBar'
 import RoundTracker from './RoundTracker'
 import { InfinityIcon, PlayIcon, ReplayIcon } from './icons'
-import { CityHeading, MapHint, GuessControls, CenterCard, ResultPanel } from './GameParts'
+import {
+  CityHeading,
+  MapHint,
+  GuessControls,
+  CenterCard,
+  NewBestBadge,
+  ResultPanel,
+} from './GameParts'
 
 type GameState =
   | { phase: 'start' }
@@ -34,6 +41,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
   const [gameId, setGameId] = useState('')
   const [total, setTotal] = useState(0)
   const [scores, setScores] = useState<number[]>([])
+  const [previousBest, setPreviousBest] = useState<number | null>(null)
   const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
 
   async function startGame() {
@@ -41,6 +49,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
     setPendingGuess(null)
     setTotal(0)
     setScores([])
+    setPreviousBest(null)
     try {
       const game = await startFreeplay()
       setGameId(game.game_id)
@@ -58,6 +67,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
       const res = await submitFreeplayGuess(gameId, lat, lon)
       setTotal(res.total)
       setScores((s) => [...s, res.result.score])
+      setPreviousBest(res.previous_best)
       setState({ phase: 'result', round, result: res.result, next: res.next })
     } catch (err) {
       setState({ phase: 'error', message: (err as Error).message })
@@ -105,6 +115,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
               {total}
               <small> / 5000</small>
             </div>
+            {previousBest !== null && <NewBestBadge previous={previousBest} />}
             <button className="fab" aria-label="Play again" onClick={startGame}>
               <ReplayIcon size={32} strokeWidth={2.6} />
             </button>

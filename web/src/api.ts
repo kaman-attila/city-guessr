@@ -31,6 +31,8 @@ export type RoundGuessResult = {
   result: GuessResult
   total: number
   next: NextRound | null
+  /** set when this guess finished the game with a new personal best: the best it replaced */
+  previous_best: number | null
 }
 
 export type Histogram = {

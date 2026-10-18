@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowRightIcon, CheckIcon, CloseIcon, PinIcon } from './icons'
+import { ArrowRightIcon, CheckIcon, CloseIcon, PinIcon, StarIcon } from './icons'
 import { formatDistance } from './settings'
 import { type GuessResult, type Units } from './api'
 import './Game.css'
@@ -16,6 +16,19 @@ export function CityHeading({ name }: { name: string | null }) {
   return (
     <div className="city-heading">
       <h1 className="display city-name">{name ?? '\u00a0'}</h1>
+    </div>
+  )
+}
+
+/** Shown on the final score when the game beat the player's best; `previous` is the old best. */
+export function NewBestBadge({ previous }: { previous: number }) {
+  return (
+    <div className="new-best" role="status">
+      <StarIcon size={18} />
+      <span>
+        <strong>New personal best!</strong>
+        <small>{previous === 0 ? 'Your first saved best score' : `Previous best: ${previous}`}</small>
+      </span>
     </div>
   )
 }

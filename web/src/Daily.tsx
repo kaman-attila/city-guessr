@@ -50,6 +50,7 @@ export default function Daily({
   const [total, setTotal] = useState(0)
   const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
   const [rounds, setRounds] = useState<RoundScore[]>([])
+  const [previousBest, setPreviousBest] = useState<number | null>(null)
   const [wasSignedIn, setWasSignedIn] = useState(signedIn)
 
   if (signedIn !== wasSignedIn) {
@@ -59,6 +60,7 @@ export default function Daily({
       setTotal(0)
       setPendingGuess(null)
       setRounds([])
+      setPreviousBest(null)
     }
   }
 
@@ -101,6 +103,7 @@ export default function Daily({
       const res = await submitDailyGuess(date, pendingGuess.lat, pendingGuess.lon)
       setTotal(res.total)
       setRounds((r) => [...r, { name: round.name, score: res.result.score }])
+      setPreviousBest(res.previous_best)
       setState({ phase: 'result', round, result: res.result, next: res.next })
     } catch (err) {
       fail(err)
@@ -180,6 +183,7 @@ export default function Daily({
           total={total}
           histogram={state.histogram}
           rounds={rounds.length === ROUNDS ? rounds : null}
+          previousBest={previousBest}
           onFreeplay={onFreeplay}
         />
       ) : (
