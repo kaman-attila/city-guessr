@@ -6,11 +6,21 @@ import { isDark, loadLocalSettings, saveLocalSettings, type Settings } from './s
 import AccountMenu from './AccountMenu'
 import Menu from './Menu'
 import Privacy from './Privacy'
+import { ResetPasswordPage, VerifyEmailPage } from './AuthPages'
 
-type Screen = 'menu' | 'daily' | 'freeplay' | 'privacy'
+type Screen = 'menu' | 'daily' | 'freeplay' | 'privacy' | 'verify' | 'reset'
+
+function emailLink(): { screen: Screen; token: string } | null {
+  const token = new URLSearchParams(window.location.search).get('token')
+  if (!token) return null
+  if (window.location.pathname === '/verify-email') return { screen: 'verify', token }
+  if (window.location.pathname === '/reset-password') return { screen: 'reset', token }
+  return null
+}
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('menu')
+  const [link] = useState(emailLink)
+  const [screen, setScreen] = useState<Screen>(link?.screen ?? 'menu')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [settings, setSettings] = useState<Settings>(loadLocalSettings)
 
@@ -24,6 +34,10 @@ export default function App() {
       .then(applyProfile)
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (link) window.history.replaceState(null, '', '/')
+  }, [link])
 
   useEffect(() => {
     saveLocalSettings(settings)
@@ -48,8 +62,8 @@ export default function App() {
     if (profile) {
       try {
         setProfile(await updateSettings(change))
-      } catch {
-        // the change is still applied and saved locally
+      } catch (err) {
+        console.warn('could not save settings to your account', err)
       }
     }
   }
@@ -89,6 +103,26 @@ export default function App() {
       />
     )
   if (screen === 'privacy') return <Privacy account={accountButton} onHome={back} />
+  if (screen === 'verify' && link)
+    return (
+      <VerifyEmailPage
+        token={link.token}
+        account={accountButton}
+        onHome={back}
+        onVerified={() => {
+          refreshProfile().catch(() => {})
+        }}
+      />
+    )
+  if (screen === 'reset' && link)
+    return (
+      <ResetPasswordPage
+        token={link.token}
+        account={accountButton}
+        onHome={back}
+        onLoggedIn={refreshProfile}
+      />
+    )
 
   return (
     <Menu

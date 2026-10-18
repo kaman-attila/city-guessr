@@ -205,7 +205,41 @@
 .account-form .error {
   margin: 0;
   font-size: 14px;
+  color: var(--danger);
+}
+
+.account-form .notice {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
   color: var(--accent-text);
+}
+
+.verify-note {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--sun);
+  background: color-mix(in srgb, var(--sun) 12%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.verify-note strong {
+  color: var(--sun-text);
+}
+
+.verify-note .btn-link {
+  height: 32px;
+  align-self: flex-start;
+  padding: 0 10px;
+}
+
+.verify-note .error {
+  margin: 0;
+  color: var(--danger);
 }
 
 .btn-primary {

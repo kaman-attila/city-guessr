@@ -116,7 +116,6 @@
   }
 }
 
-/* city name popup: MapLibre's default is always white, which hides the light text in dark mode */
 .maplibregl-popup-content {
   padding: 8px 30px 8px 12px;
   border-radius: 12px;

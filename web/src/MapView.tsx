@@ -73,7 +73,6 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
   const cityMarkersRef = useRef<maplibregl.Marker[]>([])
   const styleUrl = dark ? DARK_STYLE : LIGHT_STYLE
   const styleRef = useRef(styleUrl)
-  // setStyle drops all sources, so remember the line to re-add it after a theme switch
   const lineDataRef = useRef<LineData>(EMPTY)
 
   useEffect(() => {
@@ -106,7 +105,6 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
       onMapClickRef.current(lat, lng)
     })
 
-    // the card's height follows the layout (e.g. when the round tracker appears), not just the window
     const resizeObserver = new ResizeObserver(() => map.resize())
     resizeObserver.observe(containerRef.current)
 

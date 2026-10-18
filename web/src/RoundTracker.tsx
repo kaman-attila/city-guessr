@@ -5,9 +5,7 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Impossible']
 const MAX_SCORE = 1000
 
 type Props = {
-  /** score of each answered round in order; null when the score is unknown */
   scores: (number | null)[]
-  /** 1-based round being guessed right now, or null between rounds */
   current: number | null
   total: number
 }

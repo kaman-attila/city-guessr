@@ -5,6 +5,10 @@ compatibility_date = "2026-10-14"
 [build]
 command = "cargo install -q \"worker-build@^0.8\" && worker-build --release"
 
+[vars]
+APP_URL = "https://cityguessr.example"
+EMAIL_FROM = "CityGuessr <no-reply@cityguessr.example>"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "city-game"

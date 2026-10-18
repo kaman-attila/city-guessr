@@ -13,8 +13,14 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
         <h2>What is stored</h2>
         <ul>
           <li>
-            <b>Account (optional):</b> your email address, a salted hash of your password (not the
-            password itself), your best score and your theme and unit settings.
+            <b>Account (optional):</b> your email address and whether you confirmed it, a salted
+            hash of your password (not the password itself), your best score and your theme and unit
+            settings.
+          </li>
+          <li>
+            <b>Email links:</b> when you sign up or ask to reset your password, we email you a
+            one-time link. The server keeps only a hash of it, and it stops working after 24 hours
+            (confirmation) or 1 hour (password reset).
           </li>
           <li>
             <b>Login:</b> a <code>session</code> cookie for 30 days. The server only keeps a hash of
@@ -48,6 +54,10 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
           <li>
             <b>OpenFreeMap</b> serves the map, so your browser connects to its servers when the map
             loads.
+          </li>
+          <li>
+            <b>Resend</b> delivers our account emails (address confirmation and password reset), so
+            it receives your email address and the email's content. We send no newsletters or ads.
           </li>
         </ul>
 

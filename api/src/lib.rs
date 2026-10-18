@@ -13,6 +13,7 @@ use wasm_bindgen::JsValue;
 use worker::*;
 
 mod auth;
+mod email;
 mod game;
 mod guest;
 mod util;
@@ -25,6 +26,7 @@ enum AppError {
     NotFound(&'static str),
     Conflict(&'static str),
     Unauthorized(&'static str),
+    TooManyRequests(&'static str),
     Internal(String),
 }
 
@@ -37,6 +39,7 @@ impl IntoResponse for AppError {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            AppError::TooManyRequests(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
             AppError::Internal(details) => {
                 console_error!("internal error: {details}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "something went wrong")
@@ -195,12 +198,43 @@ struct LoginRow {
     pw_hash: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 struct Profile {
     email: String,
+    email_verified: bool,
     best_score: u32,
     theme: String,
     units: String,
+}
+
+#[derive(Deserialize)]
+struct ProfileRow {
+    email: String,
+    verified: u32,
+    best_score: u32,
+    theme: String,
+    units: String,
+}
+
+#[derive(Deserialize)]
+struct TokenRequest {
+    token: String,
+}
+
+#[derive(Deserialize)]
+struct EmailRequest {
+    email: String,
+}
+
+#[derive(Deserialize)]
+struct ResetRequest {
+    token: String,
+    password: String,
+}
+
+#[derive(Deserialize)]
+struct EmailRow {
+    email: String,
 }
 
 #[derive(Deserialize)]
@@ -222,6 +256,10 @@ fn router(env: Env) -> Router {
         .route("/api/logout", post(logout))
         .route("/api/me", get(me))
         .route("/api/me/settings", patch(update_settings))
+        .route("/api/me/verification-email", post(resend_verification))
+        .route("/api/verify-email", post(verify_email))
+        .route("/api/forgot-password", post(forgot_password))
+        .route("/api/reset-password", post(reset_password))
         .layer(Extension(env))
 }
 
@@ -384,7 +422,6 @@ async fn daily_start(
     let secret = env.secret("DAILY_SECRET")?.to_string();
     let ids = game::daily_name_ids(game::daily_seed(&secret, &date));
 
-    // rows started before per-round scores were stored have fewer entries than rounds; show those as unknown
     let mut scores: Vec<Option<u32>> = row
         .scores
         .split(',')
@@ -665,10 +702,7 @@ async fn register(
     if !util::is_valid_email(&email) {
         return Err(AppError::BadRequest("please enter a valid email address"));
     }
-    let pw_len = req.password.chars().count();
-    if !(8..=128).contains(&pw_len) {
-        return Err(AppError::BadRequest("password must be 8 to 128 characters"));
-    }
+    validate_password(&req.password)?;
 
     let db = env.d1("DB")?;
     let pw_hash = auth::hash_password(&req.password).await?;
@@ -685,7 +719,144 @@ async fn register(
 
     adopt_guest_play(&db, &headers, user.id).await?;
     let cookie = auth::create_session(&db, user.id).await?;
+
+    if let Err(e) = send_verification_email(&env, &db, user.id, &email).await {
+        console_error!("verification email to new user {} failed: {e}", user.id);
+    }
+
     with_cookie(Json(json!({ "email": email })), Some(cookie))
+}
+
+fn validate_password(password: &str) -> std::result::Result<(), AppError> {
+    if !(8..=128).contains(&password.chars().count()) {
+        return Err(AppError::BadRequest("password must be 8 to 128 characters"));
+    }
+    Ok(())
+}
+
+async fn send_verification_email(
+    env: &Env,
+    db: &D1Database,
+    user_id: u32,
+    to: &str,
+) -> worker::Result<bool> {
+    let Some(token) = email::create_token(db, user_id, email::VERIFY, email::VERIFY_SECS).await?
+    else {
+        return Ok(false);
+    };
+    email::send_verification(env, to, &token).await?;
+    Ok(true)
+}
+
+#[worker::send]
+async fn resend_verification(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+) -> ApiResult<Value> {
+    let db = env.d1("DB")?;
+    let user_id = require_user(&db, &headers).await?;
+    let profile = load_profile(&db, user_id).await?;
+    if profile.email_verified {
+        return Err(AppError::BadRequest("your email is already confirmed"));
+    }
+    if !send_verification_email(&env, &db, user_id, &profile.email).await? {
+        return Err(AppError::TooManyRequests(
+            "an email was just sent, please wait a minute",
+        ));
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[worker::send]
+async fn verify_email(
+    Extension(env): Extension<Env>,
+    Json(req): Json<TokenRequest>,
+) -> ApiResult<Value> {
+    let db = env.d1("DB")?;
+    let user_id = email::consume_token(&db, &req.token, email::VERIFY)
+        .await?
+        .ok_or(AppError::BadRequest("this link is invalid or has expired"))?;
+
+    db.prepare(
+        "UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?1) WHERE id = ?2",
+    )
+    .bind(&[(util::now_secs() as f64).into(), user_id.into()])?
+    .run()
+    .await?;
+    db.prepare("DELETE FROM email_tokens WHERE user_id = ?1 AND purpose = ?2")
+        .bind(&[user_id.into(), email::VERIFY.into()])?
+        .run()
+        .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[worker::send]
+async fn forgot_password(
+    Extension(env): Extension<Env>,
+    Json(req): Json<EmailRequest>,
+) -> ApiResult<Value> {
+    let address = req.email.trim().to_lowercase();
+    if !util::is_valid_email(&address) {
+        return Err(AppError::BadRequest("please enter a valid email address"));
+    }
+    let db = env.d1("DB")?;
+
+    let user: Option<IdRow> = db
+        .prepare("SELECT id FROM users WHERE email = ?1")
+        .bind(&[address.as_str().into()])?
+        .first(None)
+        .await?;
+    if let Some(user) = user {
+        let sent = match email::create_token(&db, user.id, email::RESET, email::RESET_SECS).await? {
+            Some(token) => email::send_password_reset(&env, &address, &token).await,
+            None => Ok(()),
+        };
+        if let Err(e) = sent {
+            console_error!("password reset email to user {} failed: {e}", user.id);
+        }
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[worker::send]
+async fn reset_password(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<ResetRequest>,
+) -> std::result::Result<axum::response::Response, AppError> {
+    validate_password(&req.password)?;
+    let db = env.d1("DB")?;
+    let user_id = email::consume_token(&db, &req.token, email::RESET)
+        .await?
+        .ok_or(AppError::BadRequest("this link is invalid or has expired"))?;
+
+    let pw_hash = auth::hash_password(&req.password).await?;
+    let user: EmailRow = db
+        .prepare(
+            "UPDATE users SET pw_hash = ?1, email_verified_at = COALESCE(email_verified_at, ?2) \
+             WHERE id = ?3 RETURNING email",
+        )
+        .bind(&[
+            pw_hash.as_str().into(),
+            (util::now_secs() as f64).into(),
+            user_id.into(),
+        ])?
+        .first(None)
+        .await?
+        .ok_or_else(|| AppError::Internal(format!("reset token for missing user {user_id}")))?;
+
+    db.prepare("DELETE FROM sessions WHERE user_id = ?1")
+        .bind(&[user_id.into()])?
+        .run()
+        .await?;
+    db.prepare("DELETE FROM email_tokens WHERE user_id = ?1")
+        .bind(&[user_id.into()])?
+        .run()
+        .await?;
+
+    adopt_guest_play(&db, &headers, user_id).await?;
+    let cookie = auth::create_session(&db, user_id).await?;
+    with_cookie(Json(json!({ "email": user.email })), Some(cookie))
 }
 
 #[worker::send]
@@ -767,11 +938,22 @@ async fn require_user(db: &D1Database, headers: &HeaderMap) -> std::result::Resu
 }
 
 async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Profile, AppError> {
-    db.prepare("SELECT email, best_score, theme, units FROM users WHERE id = ?1")
+    let row: ProfileRow = db
+        .prepare(
+            "SELECT email, email_verified_at IS NOT NULL AS verified, best_score, theme, units \
+             FROM users WHERE id = ?1",
+        )
         .bind(&[user_id.into()])?
         .first(None)
         .await?
-        .ok_or_else(|| AppError::Internal(format!("session for missing user {user_id}")))
+        .ok_or_else(|| AppError::Internal(format!("session for missing user {user_id}")))?;
+    Ok(Profile {
+        email: row.email,
+        email_verified: row.verified != 0,
+        best_score: row.best_score,
+        theme: row.theme,
+        units: row.units,
+    })
 }
 
 #[worker::send]

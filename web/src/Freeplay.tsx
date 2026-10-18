@@ -11,13 +11,7 @@ import {
 import TopBar from './TopBar'
 import RoundTracker from './RoundTracker'
 import { InfinityIcon, PlayIcon, ReplayIcon } from './icons'
-import {
-  CityHeading,
-  MapHint,
-  GuessControls,
-  CenterCard,
-  ResultPanel,
-} from './GameParts'
+import { CityHeading, MapHint, GuessControls, CenterCard, ResultPanel } from './GameParts'
 
 type GameState =
   | { phase: 'start' }

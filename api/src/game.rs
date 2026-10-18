@@ -50,7 +50,7 @@ pub fn id_range_for_round(round: u32) -> Option<(u32, u32)> {
         3 => Some((1001, 5000)),
         4 => Some((5001, 10000)),
         5 => Some((10001, TOTAL_NAMES)),
-        _ => None
+        _ => None,
     }
 }
 
@@ -129,7 +129,12 @@ mod tests {
         let mut next_min = 1;
         for round in 1..=5 {
             let (min, max) = id_range_for_round(round).unwrap();
-            assert_eq!(min, next_min, "round {round} should start right after round {}", round - 1);
+            assert_eq!(
+                min,
+                next_min,
+                "round {round} should start right after round {}",
+                round - 1
+            );
             assert!(min <= max, "round {round} range is empty");
             next_min = max + 1;
         }

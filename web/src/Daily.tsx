@@ -13,13 +13,7 @@ import {
 } from './api'
 import TopBar from './TopBar'
 import RoundTracker from './RoundTracker'
-import {
-  CityHeading,
-  MapHint,
-  GuessControls,
-  CenterCard,
-  ResultPanel,
-} from './GameParts'
+import { CityHeading, MapHint, GuessControls, CenterCard, ResultPanel } from './GameParts'
 import { CalendarIcon, PlayIcon } from './icons'
 
 const ROUNDS = 5
@@ -58,7 +52,6 @@ export default function Daily({
   const [rounds, setRounds] = useState<RoundScore[]>([])
   const [wasSignedIn, setWasSignedIn] = useState(signedIn)
 
-  // after logging out this browser is a different player, so the old game and results no longer apply
   if (signedIn !== wasSignedIn) {
     setWasSignedIn(signedIn)
     if (!signedIn) {

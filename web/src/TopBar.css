@@ -1,4 +1,3 @@
-/* equal side columns keep the centre item on the page's centre line, whatever the sides contain */
 .topbar {
   position: relative;
   z-index: 10;
@@ -63,7 +62,6 @@
   font-size: 15px;
 }
 
-/* below this the tracker no longer fits between the sides, so it moves to its own row under the buttons */
 @media (max-width: 1060px) {
   .topbar {
     grid-template-columns: 1fr auto;

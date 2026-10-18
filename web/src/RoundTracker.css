@@ -21,7 +21,6 @@
   color: var(--accent-text);
 }
 
-/* difficulty colours, cool to hot; only used for the pips so text contrast doesn't depend on them */
 .level-1 {
   --level: #38bdf8;
 }
@@ -108,7 +107,6 @@
   color: var(--muted);
 }
 
-/* answered */
 .tracker-round.done .tracker-pin path {
   fill: var(--accent);
 }
@@ -121,7 +119,6 @@
   color: var(--accent-text);
 }
 
-/* playing now */
 .tracker-round.now {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
@@ -142,7 +139,6 @@
   fill: var(--accent-text);
 }
 
-/* 1000 points */
 .tracker-round.perfect {
   border-color: var(--sun);
   box-shadow:
@@ -163,7 +159,6 @@
   color: var(--sun-text);
 }
 
-/* not played yet */
 .tracker-round.todo {
   opacity: 0.6;
 }
@@ -197,7 +192,6 @@
   color: var(--muted);
 }
 
-/* tablets and phones: the tracker gets its own full-width row under the top bar */
 @media (max-width: 1060px) {
   .tracker {
     width: 100%;

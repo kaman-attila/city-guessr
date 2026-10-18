@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
-import { login, logout, register, type Profile, type Theme, type Units } from './api'
+import {
+  forgotPassword,
+  login,
+  logout,
+  register,
+  resendVerification,
+  type Profile,
+  type Theme,
+  type Units,
+} from './api'
 import { type Settings } from './settings'
 import { ChevronDownIcon, LogOutIcon, MonitorIcon, MoonIcon, SunIcon, UserIcon } from './icons'
 import './AccountMenu.css'
@@ -34,11 +43,13 @@ export default function AccountMenu({
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | string>('idle')
 
   useEffect(() => {
     if (!open) return
@@ -68,13 +79,22 @@ export default function AccountMenu({
     e.preventDefault()
     setBusy(true)
     setError(null)
+    setNotice(null)
     try {
+      if (mode === 'forgot') {
+        await forgotPassword(email)
+        setNotice(
+          "If there's an account for that address, we've sent it a link to choose a new password.",
+        )
+        return
+      }
       if (mode === 'register') {
         await register(email, password)
       } else {
         await login(email, password)
       }
       setPassword('')
+      setResend('idle')
       await onLoggedIn(mode === 'register')
     } catch (err) {
       setError((err as Error).message)
@@ -85,15 +105,28 @@ export default function AccountMenu({
 
   async function handleLogout() {
     await logout().catch(() => {})
-    setMode('login')
-    setError(null)
+    switchMode('login')
     onLoggedOut()
   }
 
-  function switchMode() {
-    setMode(mode === 'login' ? 'register' : 'login')
+  function switchMode(next: typeof mode) {
+    setMode(next)
     setError(null)
+    setNotice(null)
   }
+
+  async function handleResend() {
+    setResend('sending')
+    try {
+      await resendVerification()
+      setResend('sent')
+    } catch (err) {
+      setResend((err as Error).message)
+    }
+  }
+
+  const titles = { login: 'Log in', register: 'Create account', forgot: 'Reset password' }
+  const submitLabels = { login: 'Log in', register: 'Create account', forgot: 'Send reset link' }
 
   return (
     <div className="account" ref={rootRef}>
@@ -137,11 +170,38 @@ export default function AccountMenu({
                   <div style={{ width: `${(profile.best_score / 5000) * 100}%` }} />
                 </div>
               </div>
+              {!profile.email_verified && (
+                <div className="verify-note" role="status">
+                  <span>
+                    <strong>Confirm your email.</strong> We sent a link to {profile.email}. Without
+                    it you can't reset your password.
+                  </span>
+                  {resend === 'sent' ? (
+                    <span>Sent! Check your inbox and spam folder.</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-link"
+                      disabled={resend === 'sending'}
+                      onClick={handleResend}
+                    >
+                      {resend === 'sending' ? 'Sending…' : 'Send it again'}
+                    </button>
+                  )}
+                  {resend !== 'idle' && resend !== 'sending' && resend !== 'sent' && (
+                    <p className="error">{resend}</p>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <form className="account-form" onSubmit={handleSubmit}>
-              <h2 className="display">{mode === 'login' ? 'Log in' : 'Create account'}</h2>
-              <p className="account-sub">Keep your best score on every device.</p>
+              <h2 className="display">{titles[mode]}</h2>
+              <p className="account-sub">
+                {mode === 'forgot'
+                  ? "Enter your account's email and we'll send you a link."
+                  : 'Keep your best score on every device.'}
+              </p>
               <label htmlFor="acc-email" className="account-field-label">
                 Email
               </label>
@@ -154,25 +214,39 @@ export default function AccountMenu({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              <label htmlFor="acc-password" className="account-field-label">
-                Password
-              </label>
-              <input
-                id="acc-password"
-                type="password"
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                placeholder="At least 8 characters"
-                minLength={8}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              {mode !== 'forgot' && (
+                <>
+                  <label htmlFor="acc-password" className="account-field-label">
+                    Password
+                  </label>
+                  <input
+                    id="acc-password"
+                    type="password"
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    placeholder="At least 8 characters"
+                    minLength={8}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </>
+              )}
               {error && <p className="error">{error}</p>}
+              {notice && <p className="notice">{notice}</p>}
               <button type="submit" className="btn-primary" disabled={busy}>
-                {mode === 'login' ? 'Log in' : 'Create account'}
+                {submitLabels[mode]}
               </button>
-              <button type="button" className="btn-link" onClick={switchMode}>
-                {mode === 'login' ? 'No account? Create one' : 'Already registered? Log in'}
+              {mode === 'login' && (
+                <button type="button" className="btn-link" onClick={() => switchMode('forgot')}>
+                  Forgot password?
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
+              >
+                {mode === 'login' ? 'No account? Create one' : 'Back to log in'}
               </button>
             </form>
           )}

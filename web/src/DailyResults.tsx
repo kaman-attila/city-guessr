@@ -5,7 +5,6 @@ import { ClockIcon, InfinityIcon } from './icons'
 import { useCountdown } from './useCountdown'
 import './DailyResults.css'
 
-/** score is null for rounds played before per-round scores were stored */
 export type RoundScore = { name: string; score: number | null }
 
 type Props = {

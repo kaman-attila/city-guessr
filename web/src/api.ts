@@ -48,6 +48,7 @@ export type Units = 'metric' | 'imperial'
 
 export type Profile = {
   email: string
+  email_verified: boolean
   best_score: number
   theme: Theme
   units: Units
@@ -127,4 +128,20 @@ export async function getMe(): Promise<Profile | null> {
 
 export function updateSettings(change: Partial<Pick<Profile, 'theme' | 'units'>>) {
   return sendJson<Profile>('/api/me/settings', change, 'PATCH')
+}
+
+export function resendVerification() {
+  return sendJson<{ ok: boolean }>('/api/me/verification-email', {})
+}
+
+export function verifyEmail(token: string) {
+  return sendJson<{ ok: boolean }>('/api/verify-email', { token })
+}
+
+export function forgotPassword(email: string) {
+  return sendJson<{ ok: boolean }>('/api/forgot-password', { email })
+}
+
+export function resetPassword(token: string, password: string) {
+  return sendJson<{ email: string }>('/api/reset-password', { token, password })
 }

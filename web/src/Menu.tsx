@@ -31,9 +31,7 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivac
           </svg>
         </h1>
 
-        <p className="menu-tagline">
-          Find any city on the map.
-        </p>
+        <p className="menu-tagline">Find any city on the map.</p>
 
         <div className="modes">
           <button className="mode mode-daily" onClick={onDaily}>

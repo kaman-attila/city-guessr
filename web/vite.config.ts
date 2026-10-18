@@ -35,21 +35,11 @@ function packageRoot(id: string): string | null {
   return path.slice(0, at + marker.length) + name
 }
 
-// the dependency's install folder: nested under the package first, then the project's node_modules
-function resolveDependency(fromRoot: string, name: string): string | null {
-  const nested = join(fromRoot, 'node_modules', name)
-  const hoisted = join(import.meta.dirname, 'node_modules', name)
-  const found = [nested, hoisted].find((dir) => existsSync(join(dir, 'package.json')))
-  // same slash style as packageRoot, so one package never shows up twice
-  return found ? found.replace(/\\/g, '/') : null
-}
-
 function licenseText(root: string): string | null {
   const file = readdirSync(root).find((f) => /^(licen[cs]e|copying|notice)(\.|-|$)/i.test(f))
   return file ? readFileSync(join(root, file), 'utf8').trim() : null
 }
 
-// MIT, BSD and OFL require their notices to travel with the code, and the minified bundle drops them
 function thirdPartyLicenses(): Plugin {
   return {
     name: 'third-party-licenses',
@@ -61,29 +51,11 @@ function thirdPartyLicenses(): Plugin {
         if (root && existsSync(join(root, 'package.json'))) roots.add(root)
       }
 
-      // prebuilt packages like maplibre-gl ship their dependencies inside their own dist files
-      const queue = [...roots]
-      while (queue.length > 0) {
-        const root = queue.pop()!
-        const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-        for (const name of Object.keys(pkg.dependencies ?? {})) {
-          const dep = resolveDependency(root, name)
-          if (dep && !roots.has(dep)) {
-            roots.add(dep)
-            queue.push(dep)
-          }
-        }
-      }
-
       const sections = [...roots]
         .map((root) => {
           const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
           const title = `${pkg.name} ${pkg.version} (${pkg.license ?? 'licence not stated'})`
-          const author = typeof pkg.author === 'string' ? pkg.author : pkg.author?.name
-          const text =
-            licenseText(root) ??
-            `Copyright (c) ${author ?? `the ${pkg.name} authors`}. ` +
-              `Licensed under ${pkg.license ?? 'an unstated licence'} (the package ships no licence file).`
+          const text = licenseText(root) ?? `Licensed under ${pkg.license ?? 'an unstated licence'}.`
           return { name: pkg.name as string, body: `${title}\n${'-'.repeat(title.length)}\n${text}` }
         })
         .sort((a, b) => a.name.localeCompare(b.name))
