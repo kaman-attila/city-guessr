@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import {
+  deleteAccount,
   forgotPassword,
   login,
   logout,
@@ -10,7 +11,15 @@ import {
   type Units,
 } from './api'
 import { type Settings } from './settings'
-import { ChevronDownIcon, LogOutIcon, MonitorIcon, MoonIcon, SunIcon, UserIcon } from './icons'
+import {
+  ChevronDownIcon,
+  LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+  TrashIcon,
+  UserIcon,
+} from './icons'
 import './AccountMenu.css'
 
 type Props = {
@@ -50,6 +59,9 @@ export default function AccountMenu({
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | string>('idle')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -107,6 +119,28 @@ export default function AccountMenu({
     await logout().catch(() => {})
     switchMode('login')
     onLoggedOut()
+  }
+
+  async function handleDelete(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setBusy(true)
+    setDeleteError(null)
+    try {
+      await deleteAccount(deletePassword)
+      closeDelete()
+      switchMode('login')
+      onLoggedOut()
+    } catch (err) {
+      setDeleteError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function closeDelete() {
+    setConfirmDelete(false)
+    setDeletePassword('')
+    setDeleteError(null)
   }
 
   function switchMode(next: typeof mode) {
@@ -295,6 +329,42 @@ export default function AccountMenu({
                 <LogOutIcon />
                 Log out
               </button>
+              {confirmDelete ? (
+                <form className="account-form delete-confirm" onSubmit={handleDelete}>
+                  <p className="delete-warning">
+                    <strong>Delete your account for good?</strong> Your email, password, best score
+                    and daily results are removed right away. This can't be undone.
+                  </p>
+                  <label htmlFor="acc-delete-password" className="account-field-label">
+                    Enter your password to confirm
+                  </label>
+                  <input
+                    id="acc-delete-password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    autoFocus
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                  />
+                  {deleteError && <p className="error">{deleteError}</p>}
+                  <button type="submit" className="btn-danger" disabled={busy}>
+                    {busy ? 'Deleting…' : 'Delete my account'}
+                  </button>
+                  <button type="button" className="btn-link" onClick={closeDelete}>
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-logout btn-delete"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <TrashIcon />
+                  Delete account
+                </button>
+              )}
             </>
           )}
         </div>

@@ -20,6 +20,9 @@ mod util;
 
 const GUEST_LIMIT_PER_IP: u32 = 3;
 const FREEPLAY_GAME_SECS: i64 = 24 * 60 * 60;
+const GUEST_IP_KEEP_DAYS: u32 = 2;
+const GUEST_PLAYS_KEEP_DAYS: u32 = 14;
+const CLEAR_SESSION: &str = "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax";
 
 enum AppError {
     BadRequest(&'static str),
@@ -234,6 +237,11 @@ struct ResetRequest {
 }
 
 #[derive(Deserialize)]
+struct PasswordRequest {
+    password: String,
+}
+
+#[derive(Deserialize)]
 struct EmailRow {
     email: String,
 }
@@ -255,7 +263,7 @@ fn router(env: Env) -> Router {
         .route("/api/register", post(register))
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
-        .route("/api/me", get(me))
+        .route("/api/me", get(me).delete(delete_account))
         .route("/api/me/settings", patch(update_settings))
         .route("/api/me/verification-email", post(resend_verification))
         .route("/api/verify-email", post(verify_email))
@@ -271,6 +279,51 @@ async fn fetch(
     _ctx: Context,
 ) -> Result<axum::http::Response<axum::body::Body>> {
     Ok(router(env).call(req).await?)
+}
+
+#[event(scheduled)]
+async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
+    if let Err(e) = cleanup(&env).await {
+        console_error!("cleanup failed: {e}");
+    }
+}
+
+async fn cleanup(env: &Env) -> worker::Result<()> {
+    let db = env.d1("DB")?;
+    let now = util::now_secs();
+    let ip_cutoff = utc_date(GUEST_IP_KEEP_DAYS);
+    let plays_cutoff = utc_date(GUEST_PLAYS_KEEP_DAYS);
+
+    let results = db
+        .batch(vec![
+            db.prepare("DELETE FROM sessions WHERE expires_at < ?1")
+                .bind(&[(now as f64).into()])?,
+            db.prepare("DELETE FROM email_tokens WHERE expires_at < ?1")
+                .bind(&[(now as f64).into()])?,
+            db.prepare("DELETE FROM guest_ip_counts WHERE date < ?1")
+                .bind(&[ip_cutoff.as_str().into()])?,
+            db.prepare("DELETE FROM daily_plays WHERE player_id LIKE 'g:%' AND date < ?1")
+                .bind(&[plays_cutoff.as_str().into()])?,
+            db.prepare("DELETE FROM freeplay_games WHERE created_at < ?1")
+                .bind(&[((now - FREEPLAY_GAME_SECS) as f64).into()])?,
+        ])
+        .await?;
+
+    let deleted: Vec<String> = results
+        .iter()
+        .map(|r| {
+            r.meta()
+                .ok()
+                .flatten()
+                .and_then(|m| m.changes)
+                .map_or("?".to_string(), |n| n.to_string())
+        })
+        .collect();
+    console_log!(
+        "cleanup deleted sessions/email_tokens/guest_ip_counts/guest daily_plays/freeplay_games: {}",
+        deleted.join("/")
+    );
+    Ok(())
 }
 
 async fn health() -> Json<Value> {
@@ -910,8 +963,47 @@ async fn logout(
             .run()
             .await?;
     }
-    let clear = "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax".to_string();
-    with_cookie(Json(json!({ "ok": true })), Some(clear))
+    with_cookie(Json(json!({ "ok": true })), Some(CLEAR_SESSION.to_string()))
+}
+
+#[worker::send]
+async fn delete_account(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Json(req): Json<PasswordRequest>,
+) -> std::result::Result<axum::response::Response, AppError> {
+    const WRONG: AppError = AppError::Unauthorized("wrong password");
+
+    let db = env.d1("DB")?;
+    let user_id = require_user(&db, &headers).await?;
+    if req.password.chars().count() > 128 {
+        return Err(WRONG);
+    }
+
+    let user: LoginRow = db
+        .prepare("SELECT id, pw_hash FROM users WHERE id = ?1")
+        .bind(&[user_id.into()])?
+        .first(None)
+        .await?
+        .ok_or_else(|| AppError::Internal(format!("session for missing user {user_id}")))?;
+    if !auth::verify_password(&req.password, &user.pw_hash).await? {
+        return Err(WRONG);
+    }
+
+    let player_id = format!("u:{user_id}");
+    db.batch(vec![
+        db.prepare("DELETE FROM daily_plays WHERE player_id = ?1")
+            .bind(&[player_id.as_str().into()])?,
+        db.prepare("DELETE FROM sessions WHERE user_id = ?1")
+            .bind(&[user_id.into()])?,
+        db.prepare("DELETE FROM email_tokens WHERE user_id = ?1")
+            .bind(&[user_id.into()])?,
+        db.prepare("DELETE FROM users WHERE id = ?1")
+            .bind(&[user_id.into()])?,
+    ])
+    .await?;
+
+    with_cookie(Json(json!({ "ok": true })), Some(CLEAR_SESSION.to_string()))
 }
 
 #[worker::send]

@@ -268,6 +268,39 @@
   background: var(--surface2);
 }
 
+.btn-logout.btn-delete {
+  margin-top: -12px;
+  color: var(--danger);
+}
+
+.delete-confirm {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.delete-warning {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.delete-warning strong {
+  color: var(--danger);
+}
+
+.btn-danger {
+  height: 46px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--danger);
+  color: var(--surface);
+  font-weight: 800;
+  font-size: 15px;
+}
+
 .btn-logout {
   height: 44px;
   display: flex;

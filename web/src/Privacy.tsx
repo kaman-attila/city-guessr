@@ -37,13 +37,40 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
           <li>
             <b>Abuse protection:</b> a hash of your IP address combined with a secret and the date,
             to count at most 3 guest results per address per day. It can't be turned back into your
-            IP address, and it changes every day.
+            IP address without our secret key, and it changes every day.
           </li>
           <li>
             <b>Only in your browser:</b> your theme and unit settings.
           </li>
         </ul>
         <p>These cookies are needed for the game to work. There is no tracking or analytics.</p>
+
+        <h2>How long it is kept</h2>
+        <p>Old data is deleted automatically once a day.</p>
+        <ul>
+          <li>
+            <b>Account:</b> until you delete it. Your daily results are deleted together with the
+            account.
+          </li>
+          <li>
+            <b>Login sessions:</b> until you log out, or at most 30 days.
+          </li>
+          <li>
+            <b>Email links:</b> until they are used or expire (24 hours or 1 hour).
+          </li>
+          <li>
+            <b>Guest daily results:</b> 14 days.
+          </li>
+          <li>
+            <b>Freeplay games:</b> 24 hours.
+          </li>
+          <li>
+            <b>IP address hashes:</b> 2 days.
+          </li>
+          <li>
+            <b>Score histogram:</b> kept, but it only holds counts, nothing about you.
+          </li>
+        </ul>
 
         <h2>Who else is involved</h2>
         <ul>
@@ -63,9 +90,11 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
 
         <h2>Your rights</h2>
         <p>
-          You can ask to see or delete your data at any time by emailing the creator. Logging out
-          ends your session, and deleting this site's cookies removes your guest id from your
-          browser.
+          You can delete your account at any time with the <b>Delete account</b> button in the
+          account menu (top right). This removes your email, password hash, best score, settings and
+          daily results straight away. You can also ask to see or delete your data by emailing the
+          creator. Logging out ends your session, and deleting this site's cookies removes your
+          guest id from your browser.
         </p>
       </main>
     </div>

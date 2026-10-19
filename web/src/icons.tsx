@@ -112,6 +112,12 @@ export const LogOutIcon = (p: IconProps) => (
   </Icon>
 )
 
+export const TrashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+  </Icon>
+)
+
 export const CalendarIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="3" y="5" width="18" height="16" rx="3" />

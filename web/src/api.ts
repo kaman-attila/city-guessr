@@ -127,6 +127,10 @@ export async function getMe(): Promise<Profile | null> {
   return res.json()
 }
 
+export function deleteAccount(password: string) {
+  return sendJson<{ ok: boolean }>('/api/me', { password }, 'DELETE')
+}
+
 export function updateSettings(change: Partial<Pick<Profile, 'theme' | 'units'>>) {
   return sendJson<Profile>('/api/me/settings', change, 'PATCH')
 }
