@@ -2,7 +2,7 @@ import type { Theme, Units } from './api'
 
 export type Settings = { theme: Theme; units: Units }
 
-const KEY = 'cityguessr-settings'
+const KEY = 'pinthecity-settings'
 const DEFAULTS: Settings = { theme: 'system', units: 'metric' }
 
 export function loadLocalSettings(): Settings {

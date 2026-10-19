@@ -138,7 +138,6 @@ struct RoundGuessResponse {
     result: GuessResponse,
     total: u32,
     next: Option<NextRound>,
-    /// set when this guess finished the game with a new personal best: the best it replaced
     previous_best: Option<u32>,
 }
 
@@ -929,7 +928,6 @@ async fn current_player(db: &D1Database, headers: &HeaderMap) -> worker::Result<
     Ok(guest::read_guest_id(headers).map(Player::Guest))
 }
 
-/// Raises the user's best score if `score` beats it, and returns the best it replaced.
 async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Result<Option<u32>> {
     #[derive(Deserialize)]
     struct BestRow {
@@ -947,7 +945,6 @@ async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Resul
         return Ok(None);
     }
 
-    // the WHERE keeps it correct if two games finish at the same moment
     let raised: Option<BestRow> = db
         .prepare(
             "UPDATE users SET best_score = ?1 WHERE id = ?2 AND best_score < ?1 RETURNING best_score",

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const DATA_CREDITS = `CityGuessr third-party notices
+const DATA_CREDITS = `PinTheCity third-party notices
 ==============================
 
 Map and place data

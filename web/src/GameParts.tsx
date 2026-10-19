@@ -20,14 +20,15 @@ export function CityHeading({ name }: { name: string | null }) {
   )
 }
 
-/** Shown on the final score when the game beat the player's best; `previous` is the old best. */
 export function NewBestBadge({ previous }: { previous: number }) {
   return (
     <div className="new-best" role="status">
       <StarIcon size={18} />
       <span>
         <strong>New personal best!</strong>
-        <small>{previous === 0 ? 'Your first saved best score' : `Previous best: ${previous}`}</small>
+        <small>
+          {previous === 0 ? 'Your first saved best score' : `Previous best: ${previous}`}
+        </small>
       </span>
     </div>
   )

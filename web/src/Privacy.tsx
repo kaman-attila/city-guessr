@@ -8,7 +8,7 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
       <TopBar onHome={onHome} account={account} />
       <main className="privacy">
         <h1 className="display">Privacy</h1>
-        <p>CityGuessr is a game by Kámán Attila. Questions and requests: kmnttl@gmail.com.</p>
+        <p>PinTheCity is a game by Kámán Attila. Questions and requests: kmnttl@gmail.com.</p>
 
         <h2>What is stored</h2>
         <ul>

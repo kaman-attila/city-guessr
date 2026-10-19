@@ -13,7 +13,6 @@ type Props = {
   total: number
   histogram: Histogram
   rounds: RoundScore[] | null
-  /** the best score this game replaced, or null when it wasn't a new best */
   previousBest: number | null
   onFreeplay: () => void
 }

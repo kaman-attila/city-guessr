@@ -1,13 +1,14 @@
 name = "api"
 main = "build/index.js"
 compatibility_date = "2026-10-14"
+routes = [{ pattern = "pinthecity.me", custom_domain = true }]
 
 [build]
 command = "cargo install -q \"worker-build@^0.8\" && worker-build --release"
 
 [vars]
-APP_URL = "https://cityguessr.example"
-EMAIL_FROM = "CityGuessr <no-reply@cityguessr.example>"
+APP_URL = "https://pinthecity.me"
+EMAIL_FROM = "PinTheCity <no-reply@pinthecity.me>"
 
 [[d1_databases]]
 binding = "DB"

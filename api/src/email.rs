@@ -96,34 +96,34 @@ pub async fn consume_token(
 pub async fn send_verification(env: &Env, to: &str, token: &str) -> worker::Result<()> {
     let link = format!("{}/verify-email?token={token}", app_url(env)?);
     let text = format!(
-        "Welcome to CityGuessr!\n\nConfirm your email address by opening this link:\n{link}\n\n\
+        "Welcome to PinTheCity!\n\nConfirm your email address by opening this link:\n{link}\n\n\
          The link works for 24 hours. If you didn't create an account, you can ignore this email."
     );
     let html = layout(
         "Confirm your email",
-        "Welcome to CityGuessr! Confirm your email address so you can always get back into your account.",
+        "Welcome to PinTheCity! Confirm your email address so you can always get back into your account.",
         &link,
         "Confirm email",
         "The link works for 24 hours. If you didn't create an account, you can ignore this email.",
     );
-    send(env, to, "Confirm your CityGuessr email", &text, &html).await
+    send(env, to, "Confirm your PinTheCity email", &text, &html).await
 }
 
 pub async fn send_password_reset(env: &Env, to: &str, token: &str) -> worker::Result<()> {
     let link = format!("{}/reset-password?token={token}", app_url(env)?);
     let text = format!(
-        "Someone asked to reset the password for your CityGuessr account.\n\n\
+        "Someone asked to reset the password for your PinTheCity account.\n\n\
          Choose a new password here:\n{link}\n\n\
          The link works for 1 hour. If it wasn't you, ignore this email and your password stays the same."
     );
     let html = layout(
         "Reset your password",
-        "Someone asked to reset the password for your CityGuessr account.",
+        "Someone asked to reset the password for your PinTheCity account.",
         &link,
         "Choose a new password",
         "The link works for 1 hour. If it wasn't you, ignore this email and your password stays the same.",
     );
-    send(env, to, "Reset your CityGuessr password", &text, &html).await
+    send(env, to, "Reset your PinTheCity password", &text, &html).await
 }
 
 fn layout(title: &str, intro: &str, link: &str, button: &str, footer: &str) -> String {
