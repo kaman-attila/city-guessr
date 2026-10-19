@@ -11,7 +11,7 @@ type Props = {
 export function Wordmark({ className = '' }: { className?: string }) {
   return (
     <span className={`wordmark ${className}`}>
-      City<span>Guessr</span>
+      PinThe<span>City</span>
     </span>
   )
 }

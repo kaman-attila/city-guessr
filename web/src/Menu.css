@@ -58,7 +58,7 @@
 }
 
 .menu-title-pin path {
-  fill: var(--sun);
+  fill: var(--accent);
   stroke: var(--ink);
   stroke-width: 3;
 }
@@ -138,8 +138,8 @@
 }
 
 .mode-free .mode-icon {
-  background: var(--sun);
-  color: var(--sun-ink);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .mode-badge {

@@ -6,7 +6,7 @@ use serde::Deserialize;
 use wasm_bindgen_futures::JsFuture;
 use worker::D1Database;
 
-const ITERATIONS: u32 = 100_000;
+const ITERATIONS: u32 = 100000;
 const SESSION_SECS: i64 = 30 * 24 * 60 * 60;
 pub const DUMMY_HASH: &str = "pbkdf2$100000$00000000-0000-0000-0000-000000000000$\
 0000000000000000000000000000000000000000000000000000000000000000";

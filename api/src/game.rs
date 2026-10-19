@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 
 const EARTH_RADIUS_IN_METERS: f64 = 6371000.0;
 const MAX_POINTS: f64 = 1000.0;
-const FULL_POINTS_RADIUS_IN_METERS: f64 = 5000.0;
+const FULL_POINTS_RADIUS_IN_METERS: f64 = 10000.0;
 const DECAY_IN_METERS: f64 = 1500000.0;
 pub const TOTAL_NAMES: u32 = 59383;
 pub const BUCKET_SIZE: u32 = 250;
@@ -49,7 +49,7 @@ pub fn id_range_for_round(round: u32) -> Option<(u32, u32)> {
         2 => Some((201, 1000)),
         3 => Some((1001, 5000)),
         4 => Some((5001, 10000)),
-        5 => Some((10001, TOTAL_NAMES)),
+        5 => Some((10001, TOTAL_NAMES / 2)),
         _ => None,
     }
 }
