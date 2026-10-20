@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face {
+        font-family: 'Unbounded';
+        src: url('../node_modules/@fontsource-variable/unbounded/files/unbounded-latin-wght-normal.woff2')
+          format('woff2');
+        font-weight: 200 900;
+      }
+      @font-face {
+        font-family: 'Bricolage';
+        src: url('../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2')
+          format('woff2');
+        font-weight: 200 800;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: #0a0f1f;
+      }
+
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        padding: 88px 84px;
+        font-family: 'Bricolage', system-ui, sans-serif;
+        color: #f1f3fb;
+        background: radial-gradient(circle at 78% 46%, #121a35 0%, #0a0f1f 62%);
+      }
+
+      .globe {
+        position: absolute;
+        right: -150px;
+        top: -95px;
+        width: 820px;
+        height: 820px;
+        fill: none;
+        stroke: #1c2752;
+        stroke-width: 2.5;
+      }
+
+      .route {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 1200px;
+        height: 630px;
+      }
+
+      .wordmark {
+        position: relative;
+        margin: 0;
+        font-family: 'Unbounded', sans-serif;
+        font-weight: 900;
+        font-size: 104px;
+        line-height: 1;
+        letter-spacing: -0.045em;
+      }
+
+      .wordmark span {
+        color: #72c23a;
+      }
+
+      .tagline {
+        position: relative;
+        margin: 30px 0 0;
+        font-size: 40px;
+        font-weight: 600;
+        color: #97a0c0;
+      }
+
+      .chips {
+        position: absolute;
+        left: 84px;
+        bottom: 88px;
+        display: flex;
+        gap: 16px;
+      }
+
+      .chip {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 26px;
+        border-radius: 999px;
+        font-size: 26px;
+        font-weight: 700;
+        border: 2px solid #273259;
+        background: #121a35;
+        color: #f1f3fb;
+      }
+
+      .chip.daily {
+        border-color: #4fa318;
+        background: #4fa318;
+        color: #0b1a05;
+      }
+
+      .chip svg {
+        width: 28px;
+        height: 28px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg class="globe" viewBox="0 0 600 600" aria-hidden="true">
+        <circle cx="300" cy="300" r="290" />
+        <ellipse cx="300" cy="300" rx="210" ry="290" />
+        <ellipse cx="300" cy="300" rx="110" ry="290" />
+        <line x1="300" y1="10" x2="300" y2="590" />
+        <line x1="90" y1="100" x2="510" y2="100" />
+        <line x1="28" y1="200" x2="572" y2="200" />
+        <line x1="10" y1="300" x2="590" y2="300" />
+        <line x1="28" y1="400" x2="572" y2="400" />
+        <line x1="90" y1="500" x2="510" y2="500" />
+      </svg>
+
+      <!-- the game in one picture: your pin, the real city, and the distance between them -->
+      <svg class="route" viewBox="0 0 1200 630" aria-hidden="true">
+        <path
+          d="M916 238 Q 990 330 1046 410"
+          fill="none"
+          stroke="#4fa318"
+          stroke-width="6"
+          stroke-linecap="round"
+          stroke-dasharray="14 14"
+        />
+        <circle cx="1046" cy="410" r="36" fill="none" stroke="#ffc83d" stroke-width="5" opacity="0.45" />
+        <circle cx="1046" cy="410" r="22" fill="#ffc83d" stroke="#0a0f1f" stroke-width="6" />
+        <circle cx="1046" cy="410" r="7" fill="#0a0f1f" />
+        <g transform="translate(870 132) scale(2.3)">
+          <path
+            d="M20 46s16-14.5 16-27A16 16 0 0 0 4 19c0 12.5 16 27 16 27z"
+            fill="#4fa318"
+            stroke="#0a0f1f"
+            stroke-width="3"
+            stroke-linejoin="round"
+          />
+          <circle cx="20" cy="19" r="6" fill="#0a0f1f" />
+        </g>
+        <g transform="translate(902 318)">
+          <rect width="150" height="46" rx="23" fill="#121a35" stroke="#273259" stroke-width="2" />
+          <text
+            x="75"
+            y="31"
+            text-anchor="middle"
+            font-family="ui-monospace, Consolas, monospace"
+            font-size="22"
+            font-weight="700"
+            fill="#f1f3fb"
+          >
+            12.4 km
+          </text>
+        </g>
+      </svg>
+
+      <h1 class="wordmark">PinThe<span>City</span></h1>
+      <p class="tagline">Find any city on the map.</p>
+
+      <div class="chips">
+        <span class="chip daily">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18M9 15l2 2 4-4" /></svg>
+          Daily challenge
+        </span>
+        <span class="chip">
+          <svg viewBox="0 0 24 24"><path d="M12 12c-2-2.7-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.3 6-4zm0 0c2 2.7 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.3-6 4z" /></svg>
+          Endless freeplay
+        </span>
+      </div>
+    </div>
+  </body>
+</html>
