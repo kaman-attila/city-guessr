@@ -40,6 +40,11 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
             IP address without our secret key, and it changes every day.
           </li>
           <li>
+            <b>Login protection:</b> to stop password guessing and email spam, we count recent
+            attempts to log in, sign up or reset a password, using a salted hash of your IP address
+            or the email address you typed. After too many attempts you have to wait a few minutes.
+          </li>
+          <li>
             <b>Only in your browser:</b> your theme and unit settings.
           </li>
         </ul>
@@ -66,6 +71,9 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
           </li>
           <li>
             <b>IP address hashes:</b> 2 days.
+          </li>
+          <li>
+            <b>Login protection counters:</b> 1 day.
           </li>
           <li>
             <b>Score histogram:</b> kept, but it only holds counts, nothing about you.

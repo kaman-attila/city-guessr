@@ -1,7 +1,6 @@
 -- Migration number: 0006 	 2026-10-18T10:00:00.000Z
 ALTER TABLE users ADD COLUMN email_verified_at INTEGER;
 
--- one-time links sent by email; only a hash of the token is stored
 CREATE TABLE email_tokens (
   token_hash TEXT PRIMARY KEY,
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

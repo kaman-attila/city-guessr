@@ -16,6 +16,7 @@ mod auth;
 mod email;
 mod game;
 mod guest;
+mod ratelimit;
 mod util;
 
 const GUEST_LIMIT_PER_IP: u32 = 3;
@@ -306,6 +307,8 @@ async fn cleanup(env: &Env) -> worker::Result<()> {
                 .bind(&[plays_cutoff.as_str().into()])?,
             db.prepare("DELETE FROM freeplay_games WHERE created_at < ?1")
                 .bind(&[((now - FREEPLAY_GAME_SECS) as f64).into()])?,
+            db.prepare("DELETE FROM auth_attempts WHERE window_start < ?1")
+                .bind(&[((now - ratelimit::KEEP_SECS) as f64).into()])?,
         ])
         .await?;
 
@@ -320,7 +323,7 @@ async fn cleanup(env: &Env) -> worker::Result<()> {
         })
         .collect();
     console_log!(
-        "cleanup deleted sessions/email_tokens/guest_ip_counts/guest daily_plays/freeplay_games: {}",
+        "cleanup deleted sessions/email_tokens/guest_ip_counts/guest daily_plays/freeplay_games/auth_attempts: {}",
         deleted.join("/")
     );
     Ok(())
@@ -763,6 +766,13 @@ async fn register(
     validate_password(&req.password)?;
 
     let db = env.d1("DB")?;
+    enforce(
+        &env,
+        &db,
+        &ratelimit::REGISTER_PER_IP,
+        util::client_ip(&headers),
+    )
+    .await?;
     let pw_hash = auth::hash_password(&req.password).await?;
 
     let user: IdRow = db
@@ -783,6 +793,22 @@ async fn register(
     }
 
     with_cookie(Json(json!({ "email": email })), Some(cookie))
+}
+
+async fn enforce(
+    env: &Env,
+    db: &D1Database,
+    limit: &ratelimit::Limit,
+    subject: &str,
+) -> std::result::Result<(), AppError> {
+    let secret = env.secret("DAILY_SECRET")?.to_string();
+    if ratelimit::allow(db, limit, subject, &secret).await? {
+        Ok(())
+    } else {
+        Err(AppError::TooManyRequests(
+            "too many attempts, please wait a few minutes and try again",
+        ))
+    }
 }
 
 fn validate_password(password: &str) -> std::result::Result<(), AppError> {
@@ -851,6 +877,7 @@ async fn verify_email(
 #[worker::send]
 async fn forgot_password(
     Extension(env): Extension<Env>,
+    headers: HeaderMap,
     Json(req): Json<EmailRequest>,
 ) -> ApiResult<Value> {
     let address = req.email.trim().to_lowercase();
@@ -858,6 +885,14 @@ async fn forgot_password(
         return Err(AppError::BadRequest("please enter a valid email address"));
     }
     let db = env.d1("DB")?;
+    // stops one visitor from sending reset emails to lots of strangers through the site
+    enforce(
+        &env,
+        &db,
+        &ratelimit::FORGOT_PER_IP,
+        util::client_ip(&headers),
+    )
+    .await?;
 
     let user: Option<IdRow> = db
         .prepare("SELECT id FROM users WHERE email = ?1")
@@ -884,6 +919,13 @@ async fn reset_password(
 ) -> std::result::Result<axum::response::Response, AppError> {
     validate_password(&req.password)?;
     let db = env.d1("DB")?;
+    enforce(
+        &env,
+        &db,
+        &ratelimit::RESET_PER_IP,
+        util::client_ip(&headers),
+    )
+    .await?;
     let user_id = email::consume_token(&db, &req.token, email::RESET)
         .await?
         .ok_or(AppError::BadRequest("this link is invalid or has expired"))?;
@@ -930,6 +972,15 @@ async fn login(
         return Err(WRONG);
     }
     let db = env.d1("DB")?;
+    // per IP against one visitor trying many accounts, per email against many IPs trying one account
+    enforce(
+        &env,
+        &db,
+        &ratelimit::LOGIN_PER_IP,
+        util::client_ip(&headers),
+    )
+    .await?;
+    enforce(&env, &db, &ratelimit::LOGIN_PER_EMAIL, &email).await?;
 
     let row: Option<LoginRow> = db
         .prepare("SELECT id, pw_hash FROM users WHERE email = ?1")
@@ -979,6 +1030,7 @@ async fn delete_account(
     if req.password.chars().count() > 128 {
         return Err(WRONG);
     }
+    enforce(&env, &db, &ratelimit::DELETE_PER_USER, &user_id.to_string()).await?;
 
     let user: LoginRow = db
         .prepare("SELECT id, pw_hash FROM users WHERE id = ?1")

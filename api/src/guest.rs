@@ -1,4 +1,4 @@
-use crate::util::{random_uuid, read_cookie, sha256_hex};
+use crate::util::{client_ip, random_uuid, read_cookie, sha256_hex};
 use axum::http::HeaderMap;
 
 pub fn read_guest_id(headers: &HeaderMap) -> Option<String> {
@@ -30,9 +30,5 @@ pub fn get_or_create_guest(headers: &HeaderMap) -> worker::Result<(String, Optio
 }
 
 pub fn ip_hash(headers: &HeaderMap, secret: &str, date: &str) -> String {
-    let ip = headers
-        .get("cf-connecting-ip")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
-    sha256_hex(&format!("{secret}:{date}:{ip}"))
+    sha256_hex(&format!("{secret}:{date}:{}", client_ip(headers)))
 }

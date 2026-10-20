@@ -35,6 +35,13 @@ pub fn is_valid_email(email: &str) -> bool {
         && domain.split('.').all(|part| !part.is_empty())
 }
 
+pub fn client_ip(headers: &HeaderMap) -> &str {
+    headers
+        .get("cf-connecting-ip")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+}
+
 pub fn read_cookie(headers: &HeaderMap, name: &str) -> Option<String> {
     let prefix = format!("{name}=");
     headers
