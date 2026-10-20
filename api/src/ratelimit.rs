@@ -11,16 +11,45 @@ pub struct Limit {
 
 const QUARTER_HOUR: i64 = 15 * 60;
 
-pub const LOGIN_PER_EMAIL: Limit = Limit { name: "login-email", max: 10, window_secs: QUARTER_HOUR };
-pub const LOGIN_PER_IP: Limit = Limit { name: "login-ip", max: 20, window_secs: QUARTER_HOUR };
-pub const REGISTER_PER_IP: Limit = Limit { name: "register-ip", max: 10, window_secs: 60 * 60 };
-pub const FORGOT_PER_IP: Limit = Limit { name: "forgot-ip", max: 5, window_secs: QUARTER_HOUR };
-pub const RESET_PER_IP: Limit = Limit { name: "reset-ip", max: 10, window_secs: QUARTER_HOUR };
-pub const DELETE_PER_USER: Limit = Limit { name: "delete-user", max: 10, window_secs: QUARTER_HOUR };
+pub const LOGIN_PER_EMAIL: Limit = Limit {
+    name: "login-email",
+    max: 10,
+    window_secs: QUARTER_HOUR,
+};
+pub const LOGIN_PER_IP: Limit = Limit {
+    name: "login-ip",
+    max: 20,
+    window_secs: QUARTER_HOUR,
+};
+pub const REGISTER_PER_IP: Limit = Limit {
+    name: "register-ip",
+    max: 10,
+    window_secs: 60 * 60,
+};
+pub const FORGOT_PER_IP: Limit = Limit {
+    name: "forgot-ip",
+    max: 5,
+    window_secs: QUARTER_HOUR,
+};
+pub const RESET_PER_IP: Limit = Limit {
+    name: "reset-ip",
+    max: 10,
+    window_secs: QUARTER_HOUR,
+};
+pub const DELETE_PER_USER: Limit = Limit {
+    name: "delete-user",
+    max: 10,
+    window_secs: QUARTER_HOUR,
+};
 
 pub const KEEP_SECS: i64 = 24 * 60 * 60;
 
-pub async fn allow(db: &D1Database, limit: &Limit, subject: &str, secret: &str) -> worker::Result<bool> {
+pub async fn allow(
+    db: &D1Database,
+    limit: &Limit,
+    subject: &str,
+    secret: &str,
+) -> worker::Result<bool> {
     let key = sha256_hex(&format!("{secret}:{}:{subject}", limit.name));
     let now = now_secs();
 

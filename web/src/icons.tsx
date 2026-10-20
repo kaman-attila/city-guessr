@@ -158,6 +158,13 @@ export const PlayIcon = (p: IconProps) => (
   </Icon>
 )
 
+export const ShareIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" />
+    <path d="M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" />
+  </Icon>
+)
+
 export const ReplayIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />

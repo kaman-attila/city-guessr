@@ -280,6 +280,18 @@
   transition: transform 0.15s ease;
 }
 
+.share-btn {
+  position: relative;
+  padding: 0 24px 0 18px;
+  font-size: 16px;
+}
+
+.share-error {
+  position: relative;
+  margin: -8px 0 0;
+  font-size: 14px;
+}
+
 @media (hover: hover) {
   .btn-pill:hover {
     transform: scale(1.04);
