@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import {
   deleteAccount,
   forgotPassword,
+  googleSignInUrl,
   login,
   logout,
   register,
@@ -13,6 +14,7 @@ import {
 import { type Settings } from './settings'
 import {
   ChevronDownIcon,
+  GoogleIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
@@ -28,6 +30,7 @@ type Props = {
   onSettingsChange: (change: Partial<Settings>) => void
   onLoggedIn: (isNew: boolean) => Promise<void>
   onLoggedOut: () => void
+  notice?: string | null
 }
 
 const THEMES: { value: Theme; label: string; Icon: typeof SunIcon }[] = [
@@ -47,15 +50,16 @@ export default function AccountMenu({
   onSettingsChange,
   onLoggedIn,
   onLoggedOut,
+  notice: startNotice = null,
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(startNotice !== null)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(startNotice)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | string>('idle')
@@ -126,7 +130,7 @@ export default function AccountMenu({
     setBusy(true)
     setDeleteError(null)
     try {
-      await deleteAccount(deletePassword)
+      await deleteAccount(profile?.has_password ? deletePassword : undefined)
       closeDelete()
       switchMode('login')
       onLoggedOut()
@@ -189,7 +193,9 @@ export default function AccountMenu({
                 <span className="avatar">{profile.email[0].toUpperCase()}</span>
                 <div className="account-who-text">
                   <div className="account-email">{profile.email}</div>
-                  <div className="account-sub">Signed in</div>
+                  <div className="account-sub">
+                    {profile.providers.includes('google') ? 'Signed in with Google' : 'Signed in'}
+                  </div>
                 </div>
               </div>
               <div className="best">
@@ -236,6 +242,15 @@ export default function AccountMenu({
                   ? "Enter your account's email and we'll send you a link."
                   : 'Keep your best score on every device.'}
               </p>
+              {mode !== 'forgot' && (
+                <>
+                  <a className="btn-google" href={googleSignInUrl(window.location.pathname)}>
+                    <GoogleIcon />
+                    Continue with Google
+                  </a>
+                  <div className="or-divider">or with email</div>
+                </>
+              )}
               <label htmlFor="acc-email" className="account-field-label">
                 Email
               </label>
@@ -332,21 +347,28 @@ export default function AccountMenu({
               {confirmDelete ? (
                 <form className="account-form delete-confirm" onSubmit={handleDelete}>
                   <p className="delete-warning">
-                    <strong>Delete your account for good?</strong> Your email, password, best score
-                    and daily results are removed right away. This can't be undone.
+                    <strong>Delete your account for good?</strong>{' '}
+                    {profile.has_password
+                      ? 'Your email, password, best score and daily results are removed right away.'
+                      : 'Your email, best score and daily results are removed right away. Your Google account itself stays as it is.'}{' '}
+                    This can't be undone.
                   </p>
-                  <label htmlFor="acc-delete-password" className="account-field-label">
-                    Enter your password to confirm
-                  </label>
-                  <input
-                    id="acc-delete-password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    autoFocus
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                  />
+                  {profile.has_password && (
+                    <>
+                      <label htmlFor="acc-delete-password" className="account-field-label">
+                        Enter your password to confirm
+                      </label>
+                      <input
+                        id="acc-delete-password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        autoFocus
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                      />
+                    </>
+                  )}
                   {deleteError && <p className="error">{deleteError}</p>}
                   <button type="submit" className="btn-danger" disabled={busy}>
                     {busy ? 'Deleting…' : 'Delete my account'}

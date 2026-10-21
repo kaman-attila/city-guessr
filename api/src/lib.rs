@@ -1,6 +1,9 @@
 use axum::{
-    extract::Path,
-    http::{header::SET_COOKIE, HeaderMap, StatusCode},
+    extract::{Path, Query},
+    http::{
+        header::{LOCATION, SET_COOKIE},
+        HeaderMap, HeaderValue, StatusCode,
+    },
     response::IntoResponse,
     routing::{get, patch, post},
     Extension, Json, Router,
@@ -16,6 +19,7 @@ mod auth;
 mod email;
 mod game;
 mod guest;
+mod oauth;
 mod ratelimit;
 mod util;
 
@@ -241,6 +245,8 @@ struct LoginRow {
 struct Profile {
     email: String,
     email_verified: bool,
+    has_password: bool,
+    providers: Vec<String>,
     best_score: u32,
     theme: String,
     units: String,
@@ -250,9 +256,35 @@ struct Profile {
 struct ProfileRow {
     email: String,
     verified: u32,
+    has_password: u32,
+    providers: Option<String>,
     best_score: u32,
     theme: String,
     units: String,
+}
+
+#[derive(Deserialize)]
+struct OAuthStartQuery {
+    #[serde(rename = "return")]
+    return_to: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct OAuthCallbackQuery {
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct UserIdRow {
+    user_id: u32,
+}
+
+#[derive(Deserialize)]
+struct ExistingUserRow {
+    id: u32,
+    verified: u32,
 }
 
 #[derive(Deserialize)]
@@ -272,8 +304,8 @@ struct ResetRequest {
 }
 
 #[derive(Deserialize)]
-struct PasswordRequest {
-    password: String,
+struct DeleteRequest {
+    password: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -299,6 +331,8 @@ fn router(env: Env) -> Router {
         .route("/api/register", post(register))
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
+        .route("/api/auth/google", get(google_start))
+        .route("/api/auth/google/callback", get(google_callback))
         .route("/api/me", get(me).delete(delete_account))
         .route("/api/me/settings", patch(update_settings))
         .route("/api/me/verification-email", post(resend_verification))
@@ -1030,6 +1064,12 @@ async fn login(
         return Err(WRONG);
     };
 
+    if user.pw_hash.is_empty() {
+        return Err(AppError::Unauthorized(
+            "this account signs in with Google, use the Google button",
+        ));
+    }
+
     if !auth::verify_password(&req.password, &user.pw_hash).await? {
         return Err(WRONG);
     }
@@ -1054,17 +1094,179 @@ async fn logout(
     with_cookie(Json(json!({ "ok": true })), Some(CLEAR_SESSION.to_string()))
 }
 
+async fn google_start(
+    Extension(env): Extension<Env>,
+    Query(query): Query<OAuthStartQuery>,
+) -> axum::response::Response {
+    let return_to = oauth::safe_return_path(query.return_to.as_deref());
+    if !oauth::is_configured(&env) {
+        return redirect(&format!("{return_to}?signin=unavailable"), &[]);
+    }
+    match oauth::start(&env, &return_to) {
+        Ok(login) => redirect(&login.redirect_url, &[login.cookie]),
+        Err(e) => {
+            console_error!("google sign-in could not start: {e}");
+            redirect(&format!("{return_to}?signin=failed"), &[])
+        }
+    }
+}
+
+#[worker::send]
+async fn google_callback(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    Query(query): Query<OAuthCallbackQuery>,
+) -> axum::response::Response {
+    let pending = oauth::read_pending(util::read_cookie(&headers, oauth::COOKIE));
+    let return_to = pending
+        .as_ref()
+        .map_or_else(|| "/".to_string(), |p| p.return_to.clone());
+    let clear = oauth::clear_cookie();
+
+    match finish_google(&env, &headers, pending, query).await {
+        Ok(Some((session, new_account))) => {
+            let outcome = if new_account { "new" } else { "ok" };
+            redirect(&format!("{return_to}?signin={outcome}"), &[clear, session])
+        }
+        Ok(None) => redirect(&return_to, &[clear]),
+        Err(e) => {
+            console_error!("google sign-in failed: {e}");
+            redirect(&format!("{return_to}?signin=failed"), &[clear])
+        }
+    }
+}
+
+async fn finish_google(
+    env: &Env,
+    headers: &HeaderMap,
+    pending: Option<oauth::Pending>,
+    query: OAuthCallbackQuery,
+) -> worker::Result<Option<(String, bool)>> {
+    let fail = |msg: &str| worker::Error::RustError(msg.to_string());
+
+    if query.error.is_some() {
+        return Ok(None);
+    }
+    let pending = pending.ok_or_else(|| fail("missing or broken oauth cookie"))?;
+    let state = query.state.unwrap_or_default();
+    if !auth::constant_time_eq(state.as_bytes(), pending.state.as_bytes()) {
+        return Err(fail("state does not match"));
+    }
+    let code = query
+        .code
+        .filter(|c| !c.is_empty() && c.len() <= 512)
+        .ok_or_else(|| fail("missing code"))?;
+
+    let google = oauth::fetch_google_user(env, &code, &pending.verifier).await?;
+    let verified = google.email_verified;
+    let email = google
+        .email
+        .map(|e| e.trim().to_lowercase())
+        .filter(|e| verified && util::is_valid_email(e))
+        .ok_or_else(|| fail("google account has no verified email"))?;
+
+    let db = env.d1("DB")?;
+    let (user_id, new_account) = find_or_create_google_user(&db, &google.sub, &email).await?;
+    adopt_guest_play(&db, headers, user_id).await?;
+    let session = auth::create_session(&db, user_id).await?;
+    Ok(Some((session, new_account)))
+}
+
+async fn find_or_create_google_user(
+    db: &D1Database,
+    subject: &str,
+    email: &str,
+) -> worker::Result<(u32, bool)> {
+    let linked: Option<UserIdRow> = db
+        .prepare("SELECT user_id FROM user_identities WHERE provider = ?1 AND subject = ?2")
+        .bind(&[oauth::GOOGLE.into(), subject.into()])?
+        .first(None)
+        .await?;
+    if let Some(row) = linked {
+        return Ok((row.user_id, false));
+    }
+
+    let now = util::now_secs() as f64;
+    let existing: Option<ExistingUserRow> = db
+        .prepare("SELECT id, email_verified_at IS NOT NULL AS verified FROM users WHERE email = ?1")
+        .bind(&[email.into()])?
+        .first(None)
+        .await?;
+
+    let (user_id, new_account) = match existing {
+        Some(user) => {
+            if user.verified == 0 {
+                db.batch(vec![
+                    db.prepare(
+                        "UPDATE users SET pw_hash = '', email_verified_at = ?1 WHERE id = ?2",
+                    )
+                    .bind(&[now.into(), user.id.into()])?,
+                    db.prepare("DELETE FROM sessions WHERE user_id = ?1")
+                        .bind(&[user.id.into()])?,
+                    db.prepare("DELETE FROM email_tokens WHERE user_id = ?1")
+                        .bind(&[user.id.into()])?,
+                ])
+                .await?;
+            }
+            (user.id, false)
+        }
+        None => {
+            let created: IdRow = db
+                .prepare(
+                    "INSERT INTO users (email, pw_hash, email_verified_at) VALUES (?1, '', ?2) \
+                     ON CONFLICT (email) DO NOTHING RETURNING id",
+                )
+                .bind(&[email.into(), now.into()])?
+                .first(None)
+                .await?
+                .ok_or_else(|| {
+                    worker::Error::RustError("the account appeared mid sign-in".to_string())
+                })?;
+            (created.id, true)
+        }
+    };
+
+    db.prepare(
+        "INSERT INTO user_identities (provider, subject, user_id, created_at) \
+         VALUES (?1, ?2, ?3, ?4) ON CONFLICT DO NOTHING",
+    )
+    .bind(&[
+        oauth::GOOGLE.into(),
+        subject.into(),
+        user_id.into(),
+        now.into(),
+    ])?
+    .run()
+    .await?;
+    Ok((user_id, new_account))
+}
+
+fn redirect(location: &str, cookies: &[String]) -> axum::response::Response {
+    let mut res = StatusCode::FOUND.into_response();
+    let headers = res.headers_mut();
+    if let Ok(value) = HeaderValue::from_str(location) {
+        headers.insert(LOCATION, value);
+    }
+    for cookie in cookies {
+        if let Ok(value) = HeaderValue::from_str(cookie) {
+            headers.append(SET_COOKIE, value);
+        }
+    }
+    res
+}
+
 #[worker::send]
 async fn delete_account(
     Extension(env): Extension<Env>,
     headers: HeaderMap,
-    Json(req): Json<PasswordRequest>,
+    Json(req): Json<DeleteRequest>,
 ) -> std::result::Result<axum::response::Response, AppError> {
     const WRONG: AppError = AppError::Unauthorized("wrong password");
 
     let db = env.d1("DB")?;
     let user_id = require_user(&db, &headers).await?;
-    if req.password.chars().count() > 128 {
+    let password = req.password.unwrap_or_default();
+    if password.chars().count() > 128 {
         return Err(WRONG);
     }
     enforce(&env, &db, &ratelimit::DELETE_PER_USER, &user_id.to_string()).await?;
@@ -1075,7 +1277,7 @@ async fn delete_account(
         .first(None)
         .await?
         .ok_or_else(|| AppError::Internal(format!("session for missing user {user_id}")))?;
-    if !auth::verify_password(&req.password, &user.pw_hash).await? {
+    if !user.pw_hash.is_empty() && !auth::verify_password(&password, &user.pw_hash).await? {
         return Err(WRONG);
     }
 
@@ -1086,6 +1288,8 @@ async fn delete_account(
         db.prepare("DELETE FROM sessions WHERE user_id = ?1")
             .bind(&[user_id.into()])?,
         db.prepare("DELETE FROM email_tokens WHERE user_id = ?1")
+            .bind(&[user_id.into()])?,
+        db.prepare("DELETE FROM user_identities WHERE user_id = ?1")
             .bind(&[user_id.into()])?,
         db.prepare("DELETE FROM users WHERE id = ?1")
             .bind(&[user_id.into()])?,
@@ -1145,8 +1349,9 @@ async fn require_user(db: &D1Database, headers: &HeaderMap) -> std::result::Resu
 async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Profile, AppError> {
     let row: ProfileRow = db
         .prepare(
-            "SELECT email, email_verified_at IS NOT NULL AS verified, best_score, theme, units \
-             FROM users WHERE id = ?1",
+            "SELECT email, email_verified_at IS NOT NULL AS verified, pw_hash != '' AS has_password, \
+             (SELECT GROUP_CONCAT(provider) FROM user_identities WHERE user_id = users.id) AS providers, \
+             best_score, theme, units FROM users WHERE id = ?1",
         )
         .bind(&[user_id.into()])?
         .first(None)
@@ -1155,6 +1360,11 @@ async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Prof
     Ok(Profile {
         email: row.email,
         email_verified: row.verified != 0,
+        has_password: row.has_password != 0,
+        providers: row
+            .providers
+            .map(|p| p.split(',').map(str::to_string).collect())
+            .unwrap_or_default(),
         best_score: row.best_score,
         theme: row.theme,
         units: row.units,

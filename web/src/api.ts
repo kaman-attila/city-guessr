@@ -61,6 +61,8 @@ export type Units = 'metric' | 'imperial'
 export type Profile = {
   email: string
   email_verified: boolean
+  has_password: boolean
+  providers: string[]
   best_score: number
   theme: Theme
   units: Units
@@ -147,8 +149,12 @@ export async function getMe(): Promise<Profile | null> {
   return res.json()
 }
 
-export function deleteAccount(password: string) {
-  return sendJson<{ ok: boolean }>('/api/me', { password }, 'DELETE')
+export function deleteAccount(password?: string) {
+  return sendJson<{ ok: boolean }>('/api/me', password === undefined ? {} : { password }, 'DELETE')
+}
+
+export function googleSignInUrl(returnTo: string): string {
+  return `/api/auth/google?return=${encodeURIComponent(returnTo)}`
 }
 
 export function updateSettings(change: Partial<Pick<Profile, 'theme' | 'units'>>) {

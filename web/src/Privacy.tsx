@@ -18,6 +18,11 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
             settings.
           </li>
           <li>
+            <b>Google sign-in (optional):</b> if you continue with Google, Google tells us your
+            email address, that it's confirmed, and a random account id. We store the id to
+            recognise you next time. We don't get your name, photo, contacts or Google password.
+          </li>
+          <li>
             <b>Email links:</b> when you sign up or ask to reset your password, we email you a
             one-time link. The server keeps only a hash of it, and it stops working after 24 hours
             (confirmation) or 1 hour (password reset).
@@ -94,15 +99,19 @@ export default function Privacy({ account, onHome }: { account: ReactNode; onHom
             <b>Resend</b> delivers our account emails (address confirmation and password reset), so
             it receives your email address and the email's content. We send no newsletters or ads.
           </li>
+          <li>
+            <b>Google</b> handles the sign-in when you choose <b>Continue with Google</b>. Google's
+            own privacy policy applies to that step.
+          </li>
         </ul>
 
         <h2>Your rights</h2>
         <p>
           You can delete your account at any time with the <b>Delete account</b> button in the
-          account menu (top right). This removes your email, password hash, best score, settings and
-          daily results straight away. You can also ask to see or delete your data by emailing the
-          creator. Logging out ends your session, and deleting this site's cookies removes your
-          guest id from your browser.
+          account menu (top right). This removes your email, password hash, Google account id, best
+          score, settings and daily results straight away. You can also ask to see or delete your
+          data by emailing the creator. Logging out ends your session, and deleting this site's
+          cookies removes your guest id from your browser.
         </p>
       </main>
     </div>

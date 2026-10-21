@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde_json::json;
 use worker::{console_log, D1Database, Env, Fetch, Headers, Method, Request, RequestInit};
 
-use crate::util::{now_secs, random_uuid, sha256_hex};
+use crate::util::{now_secs, random_token, sha256_hex};
 
 pub const VERIFY: &str = "verify";
 pub const RESET: &str = "reset";
@@ -48,7 +48,7 @@ pub async fn create_token(
         .run()
         .await?;
 
-    let token = format!("{}{}", random_uuid()?, random_uuid()?).replace('-', "");
+    let token = random_token()?;
     db.prepare(
         "INSERT INTO email_tokens (token_hash, user_id, purpose, created_at, expires_at) \
          VALUES (?1, ?2, ?3, ?4, ?5)",

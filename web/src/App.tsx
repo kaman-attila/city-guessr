@@ -24,6 +24,20 @@ function emailLink(): { screen: Screen; token: string } | null {
   return null
 }
 
+type SignIn = 'ok' | 'new' | 'failed' | 'unavailable'
+
+const SIGNIN_ERRORS: Partial<Record<SignIn, string>> = {
+  failed: "Google sign-in didn't work. Please try again.",
+  unavailable: "Google sign-in isn't available right now. You can use your email instead.",
+}
+
+function signinResult(): SignIn | null {
+  const value = new URLSearchParams(window.location.search).get('signin')
+  return value === 'ok' || value === 'new' || value === 'failed' || value === 'unavailable'
+    ? value
+    : null
+}
+
 function screenFromUrl(link: { screen: Screen } | null): Screen {
   if (link) return link.screen
   const match = Object.entries(SCREEN_PATHS).find(([, path]) => path === window.location.pathname)
@@ -36,6 +50,14 @@ export default function App() {
   const [dailyDay, setDailyDay] = useState<DailyDay | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [settings, setSettings] = useState<Settings>(loadLocalSettings)
+  const [signin] = useState(signinResult)
+  const [signinError, setSigninError] = useState(() => (signin && SIGNIN_ERRORS[signin]) ?? null)
+  const [errorScreen, setErrorScreen] = useState(screen)
+
+  if (signinError && screen !== errorScreen) {
+    setErrorScreen(screen)
+    setSigninError(null)
+  }
 
   function applyProfile(p: Profile | null) {
     setProfile(p)
@@ -44,13 +66,21 @@ export default function App() {
 
   useEffect(() => {
     getMe()
+      .then(async (p) => {
+        if (p && signin === 'new') return updateSettings(loadLocalSettings()).catch(() => p)
+        return p
+      })
       .then(applyProfile)
       .catch(() => {})
-  }, [])
+  }, [signin])
 
   useEffect(() => {
     if (link) window.history.replaceState(null, '', '/')
   }, [link])
+
+  useEffect(() => {
+    if (signin) window.history.replaceState(null, '', window.location.pathname)
+  }, [signin])
 
   useEffect(() => {
     if (link && (screen === 'verify' || screen === 'reset')) return
@@ -96,6 +126,7 @@ export default function App() {
       onSettingsChange={changeSettings}
       onLoggedIn={loggedIn}
       onLoggedOut={() => setProfile(null)}
+      notice={signinError}
     />
   )
 

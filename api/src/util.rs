@@ -17,6 +17,44 @@ pub fn sha256_hex(s: &str) -> String {
     to_hex(&Sha256::digest(s.as_bytes()))
 }
 
+pub fn base64_url(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = chunk
+            .iter()
+            .enumerate()
+            .fold(0u32, |acc, (i, &b)| acc | (b as u32) << (16 - 8 * i));
+        for i in 0..=chunk.len() {
+            out.push(ALPHABET[(n >> (18 - 6 * i) & 63) as usize] as char);
+        }
+    }
+    out
+}
+
+pub fn percent_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+pub fn form_encode(pairs: &[(&str, &str)]) -> String {
+    pairs
+        .iter()
+        .map(|(k, v)| format!("{}={}", percent_encode(k), percent_encode(v)))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+pub fn random_token() -> worker::Result<String> {
+    Ok(format!("{}{}", random_uuid()?, random_uuid()?).replace('-', ""))
+}
+
 pub fn now_secs() -> i64 {
     (js_sys::Date::now() / 1000.0) as i64
 }
@@ -73,6 +111,36 @@ mod tests {
         ] {
             assert!(!is_valid_email(email), "{email:?} should be invalid");
         }
+    }
+
+    #[test]
+    fn base64_url_matches_known_values() {
+        assert_eq!(base64_url(b""), "");
+        assert_eq!(base64_url(b"f"), "Zg");
+        assert_eq!(base64_url(b"fo"), "Zm8");
+        assert_eq!(base64_url(b"foo"), "Zm9v");
+        assert_eq!(base64_url(b"foob"), "Zm9vYg");
+        assert_eq!(base64_url(&[0xfb, 0xff, 0xfe]), "-__-");
+    }
+
+    #[test]
+    fn pkce_challenge_matches_the_rfc_example() {
+        let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+        assert_eq!(
+            base64_url(&Sha256::digest(verifier.as_bytes())),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
+    }
+
+    #[test]
+    fn form_encoding_escapes_reserved_characters() {
+        assert_eq!(
+            form_encode(&[
+                ("redirect_uri", "https://a.b/c?d=e"),
+                ("scope", "openid email")
+            ]),
+            "redirect_uri=https%3A%2F%2Fa.b%2Fc%3Fd%3De&scope=openid%20email"
+        );
     }
 
     #[test]

@@ -64,6 +64,8 @@ APP_URL=http://localhost:5173
 
 `DAILY_SECRET` decides which cities each day's challenge uses. Without `RESEND_API_KEY`, emails are printed in the `wrangler dev` terminal instead of being sent, which is handy for testing the email links.
 
+For "Continue with Google", also add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from a Google OAuth web client whose redirect URIs include `http://localhost:5173/api/auth/google/callback`. Without them the button tells players that Google sign-in isn't available.
+
 Create the local database and load the cities:
 
 ```bash
@@ -123,8 +125,8 @@ One-time setup for a new Cloudflare account:
 
 1. Create the D1 database (`npx wrangler d1 create city-game`) and put its id in `api/wrangler.toml`.
 2. Apply the migrations and load the city data with `--remote` instead of `--local`.
-3. Set the secrets: `npx wrangler secret put DAILY_SECRET` and `npx wrangler secret put RESEND_API_KEY`.
-4. Set `APP_URL`, `EMAIL_FROM` and the custom domain in `api/wrangler.toml`.
+3. Set the secrets: `npx wrangler secret put DAILY_SECRET`, `npx wrangler secret put RESEND_API_KEY` and `npx wrangler secret put GOOGLE_CLIENT_SECRET`.
+4. Set `APP_URL`, `EMAIL_FROM`, `GOOGLE_CLIENT_ID` and the custom domain in `api/wrangler.toml`.
 
 New migrations go to the live database with `npx wrangler d1 migrations apply DB --remote`.
 
@@ -138,6 +140,7 @@ New migrations go to the live database with `npx wrangler d1 migrations apply DB
 | `POST` | `/api/daily/guess` | Score a daily guess |
 | `GET` | `/api/daily/histogram/{date}` | Everyone's scores for a day |
 | `POST` | `/api/register`, `/api/login`, `/api/logout` | Accounts |
+| `GET` | `/api/auth/google`, `/api/auth/google/callback` | Continue with Google |
 | `GET`, `DELETE` | `/api/me` | Your profile, or delete your account |
 | `PATCH` | `/api/me/settings` | Theme and distance units |
 | `POST` | `/api/me/verification-email` | Send the confirmation email again |

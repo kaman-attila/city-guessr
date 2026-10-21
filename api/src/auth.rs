@@ -1,4 +1,4 @@
-use crate::util::{now_secs, random_uuid, read_cookie, sha256_hex, to_hex};
+use crate::util::{now_secs, random_token, random_uuid, read_cookie, sha256_hex, to_hex};
 use crate::wasm_bindgen::JsValue;
 use axum::http::HeaderMap;
 use js_sys::{Array, Function, Object, Promise, Reflect, Uint8Array};
@@ -12,7 +12,7 @@ pub const DUMMY_HASH: &str = "pbkdf2$100000$00000000-0000-0000-0000-000000000000
 0000000000000000000000000000000000000000000000000000000000000000";
 
 pub async fn create_session(db: &D1Database, user_id: u32) -> worker::Result<String> {
-    let token = format!("{}{}", random_uuid()?, random_uuid()?).replace('-', "");
+    let token = random_token()?;
     let expires_at = now_secs() + SESSION_SECS;
 
     db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?1, ?2, ?3)")
@@ -99,7 +99,7 @@ pub async fn current_user_id(db: &D1Database, headers: &HeaderMap) -> worker::Re
     Ok(row.map(|r| r.user_id))
 }
 
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }

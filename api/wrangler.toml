@@ -12,6 +12,7 @@ command = "cargo install -q \"worker-build@^0.8\" && worker-build --release"
 [vars]
 APP_URL = "https://pinthecity.me"
 EMAIL_FROM = "PinTheCity <no-reply@pinthecity.me>"
+GOOGLE_CLIENT_ID = "962067003286-ogd4vp3ncvmdtu417u83g1khq9n3sjqv.apps.googleusercontent.com"
 
 [[d1_databases]]
 binding = "DB"
