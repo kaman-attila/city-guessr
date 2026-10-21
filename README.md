@@ -59,6 +59,8 @@ import/   Rust tool that turns the GeoNames dump into SQL files for D1
 
    This writes `names_*.sql`, `cities_*.sql` and `round_names_*.sql` into `import/out/`. Rounds pick their cities from `round_names`: the most famous cities come first, and the later rounds are weighted so a few countries don't take over.
 
+4. Only when the borders need updating: `api/data/borders.bin` is committed and compiled into the Worker, which uses it to give a hidden bonus when a pin lands in the right country. To rebuild it, download [`ne_50m_admin_0_countries.geojson`](https://github.com/nvkelso/natural-earth-vector/tree/master/geojson) into `import/data/borders/` and run `python build_borders.py`. Each border piece gets the GeoNames country code that most of the cities inside it use, so codes like French Guiana (`GF`) match the city data.
+
 ### 2. Set up the API
 
 Create `api/.dev.vars` (it is git-ignored):

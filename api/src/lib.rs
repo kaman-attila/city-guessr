@@ -16,6 +16,7 @@ use wasm_bindgen::JsValue;
 use worker::*;
 
 mod auth;
+mod borders;
 mod email;
 mod game;
 mod guest;
@@ -524,7 +525,7 @@ async fn freeplay_guess(
         return Err(AppError::BadRequest("already finished"));
     };
 
-    let result = score_guess(&db, name_id, req.lat, req.lon).await?;
+    let result = score_guess(&db, name_id, req.lat, req.lon, true).await?;
 
     let next_name = if row.round + 1 < 5 {
         Some(random_name_for_round(&db, row.round + 2).await?)
@@ -684,7 +685,15 @@ async fn daily_guess(
 
     let secret = env.secret("DAILY_SECRET")?.to_string();
     let ids = daily_ids(&db, &secret, &req.date).await?;
-    let result = score_guess(&db, ids[row.round as usize], req.lat, req.lon).await?;
+    let country_bonus = req.date.as_str() >= game::COUNTRY_BONUS_START;
+    let result = score_guess(
+        &db,
+        ids[row.round as usize],
+        req.lat,
+        req.lon,
+        country_bonus,
+    )
+    .await?;
 
     let updated: PlayRow = db
         .prepare(
@@ -740,6 +749,7 @@ async fn score_guess(
     name_id: u32,
     lat: f64,
     lon: f64,
+    country_bonus: bool,
 ) -> std::result::Result<GuessResponse, AppError> {
     let name = find_name(db, name_id)
         .await?
@@ -748,7 +758,10 @@ async fn score_guess(
     let points: Vec<(f64, f64)> = cities.iter().map(|c| (c.lat, c.lon)).collect();
     let (closest, distance_m) = game::closest(lat, lon, &points)
         .ok_or_else(|| AppError::Internal(format!("name {} has no cities", name.id)))?;
-    let score = game::score(distance_m);
+    let mut score = game::score(distance_m);
+    if country_bonus && borders::country_at(lat, lon) == Some(cities[closest].country.as_str()) {
+        score = game::with_country_bonus(score);
+    }
     Ok(GuessResponse {
         distance_m,
         score,

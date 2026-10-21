@@ -20,6 +20,8 @@ The data has been modified: places were filtered and grouped by name.
   https://creativecommons.org/licenses/by/4.0/
 How well known each city is comes from Wikidata (number of Wikipedia articles), CC0.
   https://www.wikidata.org/
+Country borders from Natural Earth (public domain), simplified.
+  https://www.naturalearthdata.com/
 
 Software and fonts
 ------------------

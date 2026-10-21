@@ -9,6 +9,8 @@ pub const BUCKET_SIZE: u32 = 250;
 pub const BUCKETS: u32 = 20;
 pub const ARCHIVE_START: &str = "2026-10-21";
 pub const FAME_START: &str = "2026-10-23";
+pub const COUNTRY_BONUS_START: &str = "2026-10-23";
+const COUNTRY_BONUS_SHARE: f64 = 0.3;
 
 pub struct SplitMix64(u64);
 
@@ -37,6 +39,11 @@ pub fn score(distance: f64) -> u32 {
 
     (MAX_POINTS * (-(distance - FULL_POINTS_RADIUS_IN_METERS) / DECAY_IN_METERS).exp()).round()
         as u32
+}
+
+pub fn with_country_bonus(score: u32) -> u32 {
+    let gap = MAX_POINTS - score as f64;
+    score + (gap * COUNTRY_BONUS_SHARE).round() as u32
 }
 
 pub fn distance_in_meters(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
@@ -174,6 +181,18 @@ mod tests {
     fn full_points_inside_radius() {
         assert_eq!(score(0.0), 1000);
         assert_eq!(score(300.0), 1000);
+    }
+
+    #[test]
+    fn country_bonus_closes_part_of_the_gap() {
+        assert_eq!(with_country_bonus(1000), 1000);
+        assert_eq!(with_country_bonus(0), 300);
+        assert_eq!(with_country_bonus(136), 395);
+        assert_eq!(with_country_bonus(911), 938);
+        for score in 0..=1000 {
+            let boosted = with_country_bonus(score);
+            assert!(boosted >= score && boosted <= 1000, "{score} -> {boosted}");
+        }
     }
 
     #[test]
