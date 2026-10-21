@@ -1,7 +1,7 @@
 import { type Histogram } from './api'
 import Globe from './Globe'
 import HistogramChart from './HistogramChart'
-import { CalendarIcon, ClockIcon, InfinityIcon } from './icons'
+import { CalendarIcon, ClockIcon, InfinityIcon, ReplayIcon } from './icons'
 import { NewBestBadge, ShareButton } from './GameParts'
 import { dailyShareText } from './share'
 import { useCountdown } from './useCountdown'
@@ -19,6 +19,7 @@ type Props = {
   previousBest: number | null
   onFreeplay: () => void
   onArchive: () => void
+  onReplay?: () => void
 }
 
 function formatDay(date: string): string {
@@ -40,6 +41,7 @@ export default function DailyResults({
   previousBest,
   onFreeplay,
   onArchive,
+  onReplay,
 }: Props) {
   const countdown = useCountdown()
   const better = histogram.better_than_percent
@@ -114,6 +116,12 @@ export default function DailyResults({
             <ClockIcon size={18} strokeWidth={2.2} />
             Next daily in <span className="mono">{countdown}</span>
           </span>
+        )}
+        {onReplay && (
+          <button className="btn-pill btn-pill-quiet" onClick={onReplay}>
+            <ReplayIcon size={20} strokeWidth={2.4} />
+            Play again
+          </button>
         )}
         <button className="btn-pill btn-pill-quiet" onClick={onArchive}>
           <CalendarIcon size={20} strokeWidth={2.4} />

@@ -3,6 +3,7 @@ import MapView from './MapView'
 import DailyResults, { type RoundScore } from './DailyResults'
 import {
   getHistogram,
+  replayDaily,
   startDaily,
   submitDailyGuess,
   type DailyDay,
@@ -34,6 +35,7 @@ type Props = {
   units: Units
   dark: boolean
   signedIn: boolean
+  admin: boolean
   account: ReactNode
   onExit: () => void
   onFinished: () => void
@@ -50,6 +52,7 @@ export default function Daily({
   units,
   dark,
   signedIn,
+  admin,
   account,
   onExit,
   onFinished,
@@ -95,6 +98,17 @@ export default function Daily({
     setTotal(s.total)
     setRounds(s.history)
     setPendingGuess(null)
+  }
+
+  async function replay() {
+    setState({ phase: 'loading' })
+    try {
+      await replayDaily(date)
+      setPreviousBest(null)
+      await begin()
+    } catch (err) {
+      fail(err)
+    }
   }
 
   async function begin() {
@@ -236,6 +250,7 @@ export default function Daily({
           previousBest={previousBest}
           onFreeplay={onFreeplay}
           onArchive={onArchive}
+          onReplay={admin ? replay : undefined}
         />
       ) : state.phase === 'checking' ? (
         <main className="stage" aria-busy="true" />

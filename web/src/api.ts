@@ -62,6 +62,7 @@ export type Profile = {
   email: string
   email_verified: boolean
   has_password: boolean
+  is_admin: boolean
   providers: string[]
   best_score: number
   theme: Theme
@@ -96,6 +97,14 @@ export function submitFreeplayGuess(
 export function startDaily(date?: string): Promise<DailyState> {
   if (!date) return request<DailyState>('/api/daily', { method: 'POST' })
   return request<DailyState>('/api/daily', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date }),
+  })
+}
+
+export function replayDaily(date: string) {
+  return request<{ ok: boolean }>('/api/daily/replay', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ date }),

@@ -140,6 +140,7 @@ export default function App() {
         units={settings.units}
         dark={dark}
         signedIn={profile !== null}
+        admin={profile?.is_admin ?? false}
         account={accountButton}
         onExit={back}
         onFinished={refreshProfile}

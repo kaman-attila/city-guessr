@@ -169,6 +169,12 @@ struct PlayRow {
 }
 
 #[derive(Deserialize)]
+struct GuessPlayRow {
+    round: u32,
+    replays: u32,
+}
+
+#[derive(Deserialize)]
 struct PlayHistoryRow {
     round: u32,
     score: u32,
@@ -253,6 +259,7 @@ struct Profile {
     email: String,
     email_verified: bool,
     has_password: bool,
+    is_admin: bool,
     providers: Vec<String>,
     best_score: u32,
     theme: String,
@@ -264,6 +271,7 @@ struct ProfileRow {
     email: String,
     verified: u32,
     has_password: u32,
+    is_admin: u32,
     providers: Option<String>,
     best_score: u32,
     theme: String,
@@ -335,6 +343,7 @@ fn router(env: Env) -> Router {
         .route("/api/daily/guess", post(daily_guess))
         .route("/api/daily/histogram/{date}", get(daily_histogram))
         .route("/api/daily/archive", get(daily_archive))
+        .route("/api/daily/replay", post(daily_replay))
         .route("/api/register", post(register))
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
@@ -658,6 +667,35 @@ async fn daily_start(
 }
 
 #[worker::send]
+async fn daily_replay(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+    body: Option<Json<DailyStartRequest>>,
+) -> ApiResult<Value> {
+    let db = env.d1("DB")?;
+    let user_id = require_user(&db, &headers).await?;
+    if !load_profile(&db, user_id).await?.is_admin {
+        return Err(AppError::Unauthorized("only admins can replay a daily challenge"));
+    }
+    let date = body
+        .and_then(|Json(req)| req.date)
+        .unwrap_or_else(|| utc_date(0));
+    playable_daily_number(&date)?;
+
+    let reset: Option<PlayRow> = db
+        .prepare(
+            "UPDATE daily_plays SET round = 0, score = 0, scores = '', replays = replays + 1              WHERE player_id = ?1 AND date = ?2 AND round >= 5 RETURNING round, score",
+        )
+        .bind(&[format!("u:{user_id}").into(), date.as_str().into()])?
+        .first(None)
+        .await?;
+    if reset.is_none() {
+        return Err(AppError::BadRequest("finish this daily challenge first"));
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[worker::send]
 async fn daily_guess(
     Extension(env): Extension<Env>,
     headers: HeaderMap,
@@ -673,8 +711,8 @@ async fn daily_guess(
         .ok_or(AppError::BadRequest("start the daily challenge first"))?;
     let player_id = player.key();
 
-    let row: PlayRow = db
-        .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
+    let row: GuessPlayRow = db
+        .prepare("SELECT round, replays FROM daily_plays WHERE player_id = ?1 AND date = ?2")
         .bind(&[player_id.as_str().into(), req.date.as_str().into()])?
         .first(None)
         .await?
@@ -722,7 +760,7 @@ async fn daily_guess(
             round: updated.round + 1,
             name: name.name,
         })
-    } else {
+    } else if row.replays == 0 {
         match &player {
             Player::User(user_id) => {
                 record_finish(&db, &req.date, updated.score, None).await?;
@@ -733,6 +771,8 @@ async fn daily_guess(
                 record_finish(&db, &req.date, updated.score, Some(&ip)).await?;
             }
         }
+        None
+    } else {
         None
     };
 
@@ -1442,7 +1482,7 @@ async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Prof
         .prepare(
             "SELECT email, email_verified_at IS NOT NULL AS verified, pw_hash != '' AS has_password, \
              (SELECT GROUP_CONCAT(provider) FROM user_identities WHERE user_id = users.id) AS providers, \
-             best_score, theme, units FROM users WHERE id = ?1",
+             is_admin, best_score, theme, units FROM users WHERE id = ?1",
         )
         .bind(&[user_id.into()])?
         .first(None)
@@ -1452,6 +1492,7 @@ async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Prof
         email: row.email,
         email_verified: row.verified != 0,
         has_password: row.has_password != 0,
+        is_admin: row.is_admin != 0,
         providers: row
             .providers
             .map(|p| p.split(',').map(str::to_string).collect())
