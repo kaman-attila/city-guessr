@@ -51,13 +51,32 @@ import/   Rust tool that turns the GeoNames dump into SQL files for D1
    python fetch_fame.py
    ```
 
+   Then fetch what kind of place each one is, also from Wikidata (writes `import/data/types.tsv`), and download the common English words list into `import/data/words/`:
+
+   ```bash
+   python fetch_types.py
+   curl -L -o data/words/english-10000.txt https://raw.githubusercontent.com/first20hours/google-10000-english/master/google-10000-english-no-swears.txt
+   ```
+
+   These keep two kinds of places out of rounds 3–5: parts of a city (districts, neighbourhoods, suburbs, US census-designated places) and English-speaking towns named only with everyday words, like Garden City or Broken Arrow. The 1,000 most famous names are never filtered.
+
 3. Generate the SQL files:
 
    ```bash
    cargo run --release
    ```
 
-   This writes `names_*.sql`, `cities_*.sql` and `round_names_*.sql` into `import/out/`. Rounds pick their cities from `round_names`: the most famous cities come first, and the later rounds are weighted so a few countries don't take over.
+   This writes `names_*.sql`, `cities_*.sql` and `round_names_*.sql` into `import/out/`, plus `round_cities.tsv`, the list of cities that can come up in a round.
+
+   To spell those cities exactly like the map's labels, check them against the OpenFreeMap tiles and then run the import again. It downloads about 17,000 tiles, so it takes a while; if it stops, run it again and it carries on where it left off:
+
+   ```bash
+   pip install mapbox-vector-tile
+   python fetch_map_names.py
+   cargo run --release
+   ```
+
+   The second run also writes `renames_*.sql`, which updates the names in an existing database. Rounds pick their cities from `round_names`: the most famous cities come first, and the later rounds are weighted so a few countries don't take over.
 
 4. Only when the borders need updating: `api/data/borders.bin` is committed and compiled into the Worker, which uses it to give a hidden bonus when a pin lands in the right country. To rebuild it, download [`ne_50m_admin_0_countries.geojson`](https://github.com/nvkelso/natural-earth-vector/tree/master/geojson) into `import/data/borders/` and run `python build_borders.py`. Each border piece gets the GeoNames country code that most of the cities inside it use, so codes like French Guiana (`GF`) match the city data.
 

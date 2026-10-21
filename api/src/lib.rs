@@ -675,7 +675,9 @@ async fn daily_replay(
     let db = env.d1("DB")?;
     let user_id = require_user(&db, &headers).await?;
     if !load_profile(&db, user_id).await?.is_admin {
-        return Err(AppError::Unauthorized("only admins can replay a daily challenge"));
+        return Err(AppError::Unauthorized(
+            "only admins can replay a daily challenge",
+        ));
     }
     let date = body
         .and_then(|Json(req)| req.date)
