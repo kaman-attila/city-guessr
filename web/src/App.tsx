@@ -18,9 +18,14 @@ function emailLink(): { screen: Screen; token: string } | null {
   return null
 }
 
+function screenFromUrl(link: { screen: Screen } | null): Screen {
+  if (link) return link.screen
+  return window.location.pathname === '/privacy' ? 'privacy' : 'menu'
+}
+
 export default function App() {
   const [link] = useState(emailLink)
-  const [screen, setScreen] = useState<Screen>(link?.screen ?? 'menu')
+  const [screen, setScreen] = useState<Screen>(() => screenFromUrl(link))
   const [profile, setProfile] = useState<Profile | null>(null)
   const [settings, setSettings] = useState<Settings>(loadLocalSettings)
 
@@ -38,6 +43,12 @@ export default function App() {
   useEffect(() => {
     if (link) window.history.replaceState(null, '', '/')
   }, [link])
+
+  useEffect(() => {
+    const onPrivacyUrl = window.location.pathname === '/privacy'
+    if (screen === 'privacy' && !onPrivacyUrl) window.history.replaceState(null, '', '/privacy')
+    if (screen !== 'privacy' && onPrivacyUrl) window.history.replaceState(null, '', '/')
+  }, [screen])
 
   useEffect(() => {
     saveLocalSettings(settings)
