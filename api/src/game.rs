@@ -7,6 +7,7 @@ const DECAY_IN_METERS: f64 = 1500000.0;
 pub const TOTAL_NAMES: u32 = 59383;
 pub const BUCKET_SIZE: u32 = 250;
 pub const BUCKETS: u32 = 20;
+pub const ARCHIVE_START: &str = "2026-10-21";
 
 pub struct SplitMix64(u64);
 
@@ -88,6 +89,50 @@ pub fn bucket_for(score: u32) -> u32 {
     (score / BUCKET_SIZE).min(BUCKETS - 1)
 }
 
+fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (month + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+pub fn date_from_day(day: i64) -> String {
+    let z = day + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+pub fn day_from_date(date: &str) -> Option<i64> {
+    let bytes = date.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return None;
+    }
+    let year = date[..4].parse::<i64>().ok()?;
+    let month = date[5..7].parse::<i64>().ok()?;
+    let day = date[8..].parse::<i64>().ok()?;
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+    let days = days_from_civil(year, month, day);
+    (date_from_day(days) == date).then_some(days)
+}
+
+pub fn daily_number(date: &str) -> Option<u32> {
+    let day = day_from_date(date)?;
+    let start = day_from_date(ARCHIVE_START)?;
+    (day >= start).then(|| (day - start + 1) as u32)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,5 +196,48 @@ mod tests {
     #[test]
     fn daily_seeds_are_different() {
         assert!(daily_seed("s", "2026-10-15") != daily_seed("s", "2026-10-16"));
+    }
+
+    #[test]
+    fn dates_convert_both_ways() {
+        assert_eq!(day_from_date("1970-01-01"), Some(0));
+        assert_eq!(date_from_day(0), "1970-01-01");
+        for date in [
+            "2024-02-29",
+            "2026-10-21",
+            "2026-12-31",
+            "2027-01-01",
+            "2100-03-01",
+        ] {
+            let day = day_from_date(date).unwrap();
+            assert_eq!(date_from_day(day), date);
+        }
+        assert_eq!(
+            day_from_date("2027-01-01").unwrap() - day_from_date("2026-12-31").unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn broken_dates_are_rejected() {
+        for date in [
+            "",
+            "2026-1-01",
+            "2026-02-30",
+            "2025-02-29",
+            "2026-13-01",
+            "abcd-ef-gh",
+            "2026/10/21",
+        ] {
+            assert_eq!(day_from_date(date), None, "{date:?} should be rejected");
+        }
+    }
+
+    #[test]
+    fn daily_numbers_count_from_the_archive_start() {
+        assert_eq!(daily_number(ARCHIVE_START), Some(1));
+        let start = day_from_date(ARCHIVE_START).unwrap();
+        assert_eq!(daily_number(&date_from_day(start + 9)), Some(10));
+        assert_eq!(daily_number(&date_from_day(start - 1)), None);
     }
 }

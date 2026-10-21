@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { type Histogram } from './api'
 import Globe from './Globe'
 import HistogramChart from './HistogramChart'
-import { CheckIcon, ClockIcon, InfinityIcon, ShareIcon } from './icons'
+import { CalendarIcon, CheckIcon, ClockIcon, InfinityIcon, ShareIcon } from './icons'
 import { NewBestBadge } from './GameParts'
 import { dailyShareText, shareOrCopy } from './share'
 import { useCountdown } from './useCountdown'
@@ -12,11 +12,14 @@ export type RoundScore = { name: string; score: number | null }
 
 type Props = {
   date: string
+  number: number
+  isToday: boolean
   total: number
   histogram: Histogram
   rounds: RoundScore[] | null
   previousBest: number | null
   onFreeplay: () => void
+  onArchive: () => void
 }
 
 function formatDay(date: string): string {
@@ -30,11 +33,14 @@ function formatDay(date: string): string {
 
 export default function DailyResults({
   date,
+  number,
+  isToday,
   total,
   histogram,
   rounds,
   previousBest,
   onFreeplay,
+  onArchive,
 }: Props) {
   const countdown = useCountdown()
   const better = histogram.better_than_percent
@@ -43,6 +49,7 @@ export default function DailyResults({
   async function share() {
     const text = dailyShareText(
       date,
+      number,
       total,
       (rounds ?? []).map((r) => r.score),
       window.location.origin,
@@ -62,7 +69,9 @@ export default function DailyResults({
     <main className="daily-results">
       <Globe className="results-globe" />
 
-      <span className="label">Daily · {formatDay(date)}</span>
+      <span className="label">
+        Daily #{number} · {formatDay(date)}
+      </span>
 
       <div className="results-hero">
         <div className="results-total">
@@ -117,17 +126,25 @@ export default function DailyResults({
 
       <section className="results-card">
         <div className="results-card-head">
-          <h2 className="display">How everyone did today</h2>
-          <span className="mono">{histogram.players} players</span>
+          <h2 className="display">How everyone did {isToday ? 'today' : 'that day'}</h2>
+          <span className="mono">
+            {histogram.players} {histogram.players === 1 ? 'player' : 'players'}
+          </span>
         </div>
         <HistogramChart data={histogram} />
       </section>
 
       <div className="results-actions">
-        <span className="pill">
-          <ClockIcon size={18} strokeWidth={2.2} />
-          Next daily in <span className="mono">{countdown}</span>
-        </span>
+        {isToday && (
+          <span className="pill">
+            <ClockIcon size={18} strokeWidth={2.2} />
+            Next daily in <span className="mono">{countdown}</span>
+          </span>
+        )}
+        <button className="btn-pill btn-pill-quiet" onClick={onArchive}>
+          <CalendarIcon size={20} strokeWidth={2.4} />
+          Archive
+        </button>
         <button className="btn-pill" onClick={onFreeplay}>
           <InfinityIcon size={22} strokeWidth={2.4} />
           Freeplay

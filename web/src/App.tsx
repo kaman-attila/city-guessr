@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
 import Daily from './Daily'
 import Freeplay from './Freeplay'
-import { getMe, updateSettings, type Profile } from './api'
+import { getMe, updateSettings, type DailyDay, type Profile } from './api'
 import { isDark, loadLocalSettings, saveLocalSettings, type Settings } from './settings'
 import AccountMenu from './AccountMenu'
 import Menu from './Menu'
 import Privacy from './Privacy'
+import Archive from './Archive'
 import { ResetPasswordPage, VerifyEmailPage } from './AuthPages'
 
-type Screen = 'menu' | 'daily' | 'freeplay' | 'privacy' | 'verify' | 'reset'
+type Screen = 'menu' | 'daily' | 'freeplay' | 'privacy' | 'archive' | 'verify' | 'reset'
+
+const SCREEN_PATHS: Partial<Record<Screen, string>> = {
+  privacy: '/privacy',
+  archive: '/archive',
+}
 
 function emailLink(): { screen: Screen; token: string } | null {
   const token = new URLSearchParams(window.location.search).get('token')
@@ -20,12 +26,14 @@ function emailLink(): { screen: Screen; token: string } | null {
 
 function screenFromUrl(link: { screen: Screen } | null): Screen {
   if (link) return link.screen
-  return window.location.pathname === '/privacy' ? 'privacy' : 'menu'
+  const match = Object.entries(SCREEN_PATHS).find(([, path]) => path === window.location.pathname)
+  return match ? (match[0] as Screen) : 'menu'
 }
 
 export default function App() {
   const [link] = useState(emailLink)
   const [screen, setScreen] = useState<Screen>(() => screenFromUrl(link))
+  const [dailyDay, setDailyDay] = useState<DailyDay | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [settings, setSettings] = useState<Settings>(loadLocalSettings)
 
@@ -45,10 +53,10 @@ export default function App() {
   }, [link])
 
   useEffect(() => {
-    const onPrivacyUrl = window.location.pathname === '/privacy'
-    if (screen === 'privacy' && !onPrivacyUrl) window.history.replaceState(null, '', '/privacy')
-    if (screen !== 'privacy' && onPrivacyUrl) window.history.replaceState(null, '', '/')
-  }, [screen])
+    if (link && (screen === 'verify' || screen === 'reset')) return
+    const path = SCREEN_PATHS[screen] ?? '/'
+    if (window.location.pathname !== path) window.history.replaceState(null, '', path)
+  }, [screen, link])
 
   useEffect(() => {
     saveLocalSettings(settings)
@@ -91,9 +99,13 @@ export default function App() {
     />
   )
 
+  const openArchive = () => setScreen('archive')
+
   if (screen === 'daily')
     return (
       <Daily
+        key={dailyDay?.date ?? 'today'}
+        day={dailyDay}
         units={settings.units}
         dark={dark}
         signedIn={profile !== null}
@@ -101,6 +113,18 @@ export default function App() {
         onExit={back}
         onFinished={refreshProfile}
         onFreeplay={() => setScreen('freeplay')}
+        onArchive={openArchive}
+      />
+    )
+  if (screen === 'archive')
+    return (
+      <Archive
+        account={accountButton}
+        onHome={back}
+        onOpen={(day) => {
+          setDailyDay(day)
+          setScreen('daily')
+        }}
       />
     )
   if (screen === 'freeplay')
@@ -139,8 +163,12 @@ export default function App() {
     <Menu
       account={accountButton}
       bestScore={profile?.best_score ?? null}
-      onDaily={() => setScreen('daily')}
+      onDaily={() => {
+        setDailyDay(null)
+        setScreen('daily')
+      }}
       onFreeplay={() => setScreen('freeplay')}
+      onArchive={openArchive}
       onPrivacy={() => setScreen('privacy')}
     />
   )

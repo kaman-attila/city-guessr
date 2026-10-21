@@ -280,6 +280,12 @@
   transition: transform 0.15s ease;
 }
 
+.btn-pill-quiet {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
 .share-btn {
   position: relative;
   padding: 0 24px 0 18px;

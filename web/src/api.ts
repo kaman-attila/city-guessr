@@ -20,10 +20,21 @@ export type PlayedRound = { name: string; score: number | null }
 
 export type DailyState = {
   date: string
+  number: number
   total: number
   history: PlayedRound[]
   next: NextRound | null
 }
+
+export type DailyDay = { date: string; number: number }
+
+export type ArchiveDay = DailyDay & {
+  round: number
+  score: number
+  cities: string[] | null
+}
+
+export type Archive = { today: string; days: ArchiveDay[] }
 
 export type FreeplayStart = { game_id: string; next: NextRound }
 
@@ -80,8 +91,17 @@ export function submitFreeplayGuess(
   })
 }
 
-export function startDaily(): Promise<DailyState> {
-  return request<DailyState>('/api/daily', { method: 'POST' })
+export function startDaily(date?: string): Promise<DailyState> {
+  if (!date) return request<DailyState>('/api/daily', { method: 'POST' })
+  return request<DailyState>('/api/daily', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date }),
+  })
+}
+
+export function getArchive(): Promise<Archive> {
+  return request<Archive>('/api/daily/archive')
 }
 
 export function submitDailyGuess(

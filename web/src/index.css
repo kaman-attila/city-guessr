@@ -63,6 +63,26 @@ body {
   color: var(--danger);
 }
 
+.level-1 {
+  --level: #38bdf8;
+}
+
+.level-2 {
+  --level: #818cf8;
+}
+
+.level-3 {
+  --level: #e879f9;
+}
+
+.level-4 {
+  --level: #fb7185;
+}
+
+.level-5 {
+  --level: #ef4444;
+}
+
 .new-best {
   display: inline-flex;
   align-items: center;

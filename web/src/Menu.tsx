@@ -10,10 +10,18 @@ type Props = {
   bestScore: number | null
   onDaily: () => void
   onFreeplay: () => void
+  onArchive: () => void
   onPrivacy: () => void
 }
 
-export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivacy }: Props) {
+export default function Menu({
+  account,
+  bestScore,
+  onDaily,
+  onFreeplay,
+  onArchive,
+  onPrivacy,
+}: Props) {
   const countdown = useCountdown()
 
   return (
@@ -75,6 +83,12 @@ export default function Menu({ account, bestScore, onDaily, onFreeplay, onPrivac
             </span>
           </button>
         </div>
+
+        <button className="archive-link" onClick={onArchive}>
+          <CalendarIcon size={18} strokeWidth={2.2} />
+          Browse the daily archive
+          <ArrowRightIcon size={16} strokeWidth={2.4} />
+        </button>
       </main>
 
       <footer className="menu-footer">

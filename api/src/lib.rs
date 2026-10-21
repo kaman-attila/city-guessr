@@ -112,9 +112,43 @@ struct PlayedRound {
 #[derive(Serialize)]
 struct DailyState {
     date: String,
+    number: u32,
     total: u32,
     history: Vec<PlayedRound>,
     next: Option<NextRound>,
+}
+
+#[derive(Deserialize)]
+struct DailyStartRequest {
+    date: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ArchivePlayRow {
+    date: String,
+    round: u32,
+    score: u32,
+}
+
+#[derive(Serialize)]
+struct ArchiveDay {
+    date: String,
+    number: u32,
+    round: u32,
+    score: u32,
+    cities: Option<Vec<String>>,
+}
+
+#[derive(Serialize)]
+struct ArchiveResponse {
+    today: String,
+    days: Vec<ArchiveDay>,
+}
+
+#[derive(Deserialize)]
+struct IdNameRow {
+    id: u32,
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -261,6 +295,7 @@ fn router(env: Env) -> Router {
         .route("/api/daily", post(daily_start))
         .route("/api/daily/guess", post(daily_guess))
         .route("/api/daily/histogram/{date}", get(daily_histogram))
+        .route("/api/daily/archive", get(daily_archive))
         .route("/api/register", post(register))
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
@@ -453,9 +488,13 @@ async fn find_cities(db: &D1Database, first: u32, count: u32) -> worker::Result<
 async fn daily_start(
     Extension(env): Extension<Env>,
     headers: HeaderMap,
+    body: Option<Json<DailyStartRequest>>,
 ) -> std::result::Result<axum::response::Response, AppError> {
     let db = env.d1("DB")?;
-    let date = utc_date(0);
+    let date = body
+        .and_then(|Json(req)| req.date)
+        .unwrap_or_else(|| utc_date(0));
+    let number = playable_daily_number(&date)?;
 
     let (player, set_cookie) = match current_player(&db, &headers).await? {
         Some(p) => (p, None),
@@ -516,6 +555,7 @@ async fn daily_start(
 
     let state = DailyState {
         date,
+        number,
         total: row.score,
         history,
         next,
@@ -531,10 +571,7 @@ async fn daily_guess(
     Json(req): Json<DailyGuessRequest>,
 ) -> ApiResult<RoundGuessResponse> {
     validate_coords(req.lat, req.lon)?;
-
-    if req.date != utc_date(0) && req.date != utc_date(1) {
-        return Err(AppError::BadRequest("that daily challenge is over"));
-    }
+    playable_daily_number(&req.date)?;
 
     let db = env.d1("DB")?;
 
@@ -1158,6 +1195,108 @@ fn random_id(min: u32, max: u32) -> u32 {
     let random_num = js_sys::Math::random();
     let range = max - min + 1;
     min + (random_num * range as f64).floor() as u32
+}
+
+fn playable_daily_number(date: &str) -> std::result::Result<u32, AppError> {
+    let number = game::daily_number(date).ok_or(AppError::BadRequest(
+        "there is no daily challenge for that date",
+    ))?;
+    if date > utc_date(0).as_str() {
+        return Err(AppError::BadRequest("that daily challenge isn't out yet"));
+    }
+    Ok(number)
+}
+
+async fn names_by_id(
+    db: &D1Database,
+    ids: &[u32],
+) -> worker::Result<std::collections::HashMap<u32, String>> {
+    let mut names = std::collections::HashMap::new();
+    for chunk in ids.chunks(90) {
+        let placeholders = (1..=chunk.len())
+            .map(|i| format!("?{i}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let values: Vec<JsValue> = chunk.iter().map(|&id| id.into()).collect();
+        let rows: Vec<IdNameRow> = db
+            .prepare(format!(
+                "SELECT id, name FROM names WHERE id IN ({placeholders})"
+            ))
+            .bind(&values)?
+            .all()
+            .await?
+            .results()?;
+        names.extend(rows.into_iter().map(|r| (r.id, r.name)));
+    }
+    Ok(names)
+}
+
+#[worker::send]
+async fn daily_archive(
+    Extension(env): Extension<Env>,
+    headers: HeaderMap,
+) -> ApiResult<ArchiveResponse> {
+    let today = utc_date(0);
+    let (Some(first), Some(last)) = (
+        game::day_from_date(game::ARCHIVE_START),
+        game::day_from_date(&today),
+    ) else {
+        return Err(AppError::Internal("archive dates don't parse".to_string()));
+    };
+
+    let db = env.d1("DB")?;
+    let mut plays = std::collections::HashMap::new();
+    if let Some(player) = current_player(&db, &headers).await? {
+        let rows: Vec<ArchivePlayRow> = db
+            .prepare(
+                "SELECT date, round, score FROM daily_plays WHERE player_id = ?1 AND date >= ?2",
+            )
+            .bind(&[player.key().as_str().into(), game::ARCHIVE_START.into()])?
+            .all()
+            .await?
+            .results()?;
+        plays.extend(rows.into_iter().map(|r| (r.date, (r.round, r.score))));
+    }
+
+    let secret = env.secret("DAILY_SECRET")?.to_string();
+    let mut finished_ids = Vec::new();
+    for (date, (round, _)) in &plays {
+        if *round >= 5 {
+            finished_ids.push((
+                date.clone(),
+                game::daily_name_ids(game::daily_seed(&secret, date)),
+            ));
+        }
+    }
+    let all_ids: Vec<u32> = finished_ids.iter().flat_map(|(_, ids)| *ids).collect();
+    let names = names_by_id(&db, &all_ids).await?;
+    let cities_by_date: std::collections::HashMap<String, Vec<String>> = finished_ids
+        .into_iter()
+        .map(|(date, ids)| {
+            let cities = ids
+                .iter()
+                .map(|id| names.get(id).cloned().unwrap_or_default())
+                .collect();
+            (date, cities)
+        })
+        .collect();
+
+    let days = (first..=last)
+        .rev()
+        .map(|day| {
+            let date = game::date_from_day(day);
+            let (round, score) = plays.get(&date).copied().unwrap_or((0, 0));
+            ArchiveDay {
+                number: (day - first + 1) as u32,
+                round,
+                score,
+                cities: cities_by_date.get(&date).cloned(),
+                date,
+            }
+        })
+        .collect();
+
+    Ok(Json(ArchiveResponse { today, days }))
 }
 
 fn utc_date(days_ago: u32) -> String {
