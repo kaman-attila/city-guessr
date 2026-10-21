@@ -18,6 +18,8 @@ Place names and coordinates (c) GeoNames, licensed under CC BY 4.0.
 The data has been modified: places were filtered and grouped by name.
   https://www.geonames.org/
   https://creativecommons.org/licenses/by/4.0/
+How well known each city is comes from Wikidata (number of Wikipedia articles), CC0.
+  https://www.wikidata.org/
 
 Software and fonts
 ------------------

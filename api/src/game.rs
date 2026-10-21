@@ -8,6 +8,7 @@ pub const TOTAL_NAMES: u32 = 59383;
 pub const BUCKET_SIZE: u32 = 250;
 pub const BUCKETS: u32 = 20;
 pub const ARCHIVE_START: &str = "2026-10-21";
+pub const FAME_START: &str = "2026-10-23";
 
 pub struct SplitMix64(u64);
 
@@ -22,6 +23,10 @@ impl SplitMix64 {
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
         z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
         z ^ (z >> 31)
+    }
+
+    pub fn next_f64(&mut self) -> f64 {
+        (self.next_u64() >> 11) as f64 / (1u64 << 53) as f64
     }
 }
 
@@ -83,6 +88,23 @@ pub fn daily_name_ids(seed: u64) -> [u32; 5] {
         ids[round as usize - 1] = id;
     }
     ids
+}
+
+pub fn daily_draws(seed: u64) -> [f64; 5] {
+    let mut rng = SplitMix64::new(seed);
+    std::array::from_fn(|_| rng.next_f64())
+}
+
+pub fn parse_name_ids(text: &str) -> Option<[u32; 5]> {
+    let ids: Vec<u32> = text
+        .split(',')
+        .map(|part| part.parse().ok())
+        .collect::<Option<_>>()?;
+    ids.try_into().ok()
+}
+
+pub fn format_name_ids(ids: &[u32; 5]) -> String {
+    ids.map(|id| id.to_string()).join(",")
 }
 
 pub fn bucket_for(score: u32) -> u32 {
@@ -191,6 +213,28 @@ mod tests {
     #[test]
     fn daily_name_ids_are_deterministic() {
         assert_eq!(daily_name_ids(42), daily_name_ids(42));
+    }
+
+    #[test]
+    fn daily_draws_are_deterministic_and_in_range() {
+        for seed in 0..1000 {
+            let draws = daily_draws(seed);
+            assert_eq!(draws, daily_draws(seed));
+            assert!(
+                draws.iter().all(|d| (0.0..1.0).contains(d)),
+                "seed {seed}: {draws:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn name_ids_round_trip_as_text() {
+        let ids = [12, 345, 6789, 10, 29000];
+        assert_eq!(format_name_ids(&ids), "12,345,6789,10,29000");
+        assert_eq!(parse_name_ids(&format_name_ids(&ids)), Some(ids));
+        for bad in ["", "1,2,3,4", "1,2,3,4,5,6", "1,2,x,4,5", "1,,3,4,5"] {
+            assert_eq!(parse_name_ids(bad), None, "{bad:?}");
+        }
     }
 
     #[test]

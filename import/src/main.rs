@@ -2,8 +2,12 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 
+const ROUND_RANKS: [(usize, usize); 5] = [(1, 200), (201, 1000), (1001, 5000), (5001, 10000), (10001, 29691)];
+const COUNTRY_EXPONENTS: [f64; 5] = [1.0, 1.0, 0.5, 0.5, 0.5];
+
 #[derive(Debug)]
 struct City {
+    geoname_id: String,
     name: String,
     ascii: String,
     lat: f64,
@@ -25,6 +29,7 @@ fn parse_city(line: &str) -> City {
     let columns: Vec<&str> = line.split('\t').collect();
 
     City {
+        geoname_id: columns[0].to_string(),
         name: columns[1].to_string(),
         ascii: columns[2].to_string(),
         lat: columns[4].parse::<f64>().unwrap(),
@@ -39,10 +44,70 @@ fn sql_str(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
 
+fn read_sitelinks() -> std::io::Result<HashMap<String, u32>> {
+    let reader = BufReader::new(File::open("data/sitelinks.tsv")?);
+    let mut links = HashMap::new();
+    for line in reader.lines() {
+        let line = line?;
+        if let Some((id, count)) = line.split_once('\t') {
+            links.insert(id.to_string(), count.parse().unwrap_or(0));
+        }
+    }
+    Ok(links)
+}
+
+struct Fame {
+    name_id: u32,
+    links: u32,
+    population: u64,
+    country: String,
+}
+
+fn round_name_values(mut fame: Vec<Fame>) -> Vec<String> {
+    fame.sort_by(|a, b| {
+        b.links
+            .cmp(&a.links)
+            .then(b.population.cmp(&a.population))
+            .then(a.name_id.cmp(&b.name_id))
+    });
+
+    let mut values = Vec::new();
+    for (round, (&(first, last), &exponent)) in ROUND_RANKS.iter().zip(&COUNTRY_EXPONENTS).enumerate() {
+        let pool = &fame[first - 1..last.min(fame.len())];
+        let mut per_country: HashMap<&str, usize> = HashMap::new();
+        for name in pool {
+            *per_country.entry(name.country.as_str()).or_default() += 1;
+        }
+        let total: f64 = per_country.values().map(|&n| (n as f64).powf(exponent)).sum();
+
+        let mut cum = 0.0;
+        for (i, name) in pool.iter().enumerate() {
+            let n = per_country[name.country.as_str()] as f64;
+            cum += n.powf(exponent) / total / n;
+            let point = if i + 1 == pool.len() { 1.0 } else { cum };
+            values.push(format!("({}, {point}, {})", round + 1, name.name_id));
+        }
+        println!("round {}: {} names from {} countries", round + 1, pool.len(), per_country.len());
+    }
+    values
+}
+
 fn write_sql(prefix: &str, header: &str, values: &[String]) -> std::io::Result<()> {
+    write_sql_after(prefix, None, header, values)
+}
+
+fn write_sql_after(
+    prefix: &str,
+    preamble: Option<&str>,
+    header: &str,
+    values: &[String],
+) -> std::io::Result<()> {
     for (file_no, file_rows) in values.chunks(25_000).enumerate() {
         let path = format!("out/{prefix}_{:03}.sql", file_no + 1);
         let mut w = BufWriter::new(File::create(&path)?);
+        if let (0, Some(preamble)) = (file_no, preamble) {
+            writeln!(w, "{preamble}")?;
+        }
 
         for stmt_rows in file_rows.chunks(300) {
             writeln!(w, "{}", header)?;
@@ -98,8 +163,10 @@ fn main() -> std::io::Result<()> {
         );
     }
 
+    let sitelinks = read_sitelinks()?;
     let mut name_rows: Vec<NameRow> = Vec::new();
     let mut city_rows: Vec<(u32, City)> = Vec::new();
+    let mut fame: Vec<Fame> = Vec::new();
     let mut next_city_id: u32 = 1;
 
     for (i, (_key, list)) in sorted_cities.into_iter().enumerate() {
@@ -107,6 +174,17 @@ fn main() -> std::io::Result<()> {
         let first_city = next_city_id;
         let city_count = list.len() as u32;
         let display_name = list[0].name.clone();
+
+        let famous = list
+            .iter()
+            .max_by_key(|c| (sitelinks.get(&c.geoname_id).copied().unwrap_or(0), c.population))
+            .unwrap();
+        fame.push(Fame {
+            name_id,
+            links: sitelinks.get(&famous.geoname_id).copied().unwrap_or(0),
+            population: famous.population,
+            country: famous.country.clone(),
+        });
 
         name_rows.push(NameRow {
             id: name_id,
@@ -162,6 +240,12 @@ fn main() -> std::io::Result<()> {
         "cities",
         "INSERT OR IGNORE INTO cities (id, name, lat, lon, country, population) VALUES",
         &city_values,
+    )?;
+    write_sql_after(
+        "round_names",
+        Some("DELETE FROM round_names;"),
+        "INSERT INTO round_names (round, cum, name_id) VALUES",
+        &round_name_values(fame),
     )?;
     Ok(())
 }

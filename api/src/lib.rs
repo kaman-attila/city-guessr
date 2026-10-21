@@ -150,6 +150,12 @@ struct ArchiveResponse {
 }
 
 #[derive(Deserialize)]
+struct DailyNamesRow {
+    date: String,
+    name_ids: String,
+}
+
+#[derive(Deserialize)]
 struct IdNameRow {
     id: u32,
     name: String,
@@ -409,16 +415,68 @@ async fn find_name(db: &D1Database, id: u32) -> worker::Result<Option<NameRow>> 
         .await
 }
 
+async fn pick_round_name(db: &D1Database, round: u32, draw: f64) -> worker::Result<Option<u32>> {
+    let row: Option<IdRow> = db
+        .prepare(
+            "SELECT name_id AS id FROM round_names WHERE round = ?1 AND cum > ?2 \
+             ORDER BY cum LIMIT 1",
+        )
+        .bind(&[round.into(), draw.into()])?
+        .first(None)
+        .await?;
+    Ok(row.map(|r| r.id))
+}
+
 async fn random_name_for_round(
     db: &D1Database,
     round: u32,
 ) -> std::result::Result<NameRow, AppError> {
-    let (min, max) = game::id_range_for_round(round)
-        .ok_or_else(|| AppError::Internal(format!("no id range for round {round}")))?;
-    let id = random_id(min, max);
+    let id = match pick_round_name(db, round, js_sys::Math::random()).await? {
+        Some(id) => id,
+        None => {
+            let (min, max) = game::id_range_for_round(round)
+                .ok_or_else(|| AppError::Internal(format!("no id range for round {round}")))?;
+            random_id(min, max)
+        }
+    };
     find_name(db, id)
         .await?
         .ok_or_else(|| AppError::Internal(format!("random name id {id} not found")))
+}
+
+async fn daily_ids(
+    db: &D1Database,
+    secret: &str,
+    date: &str,
+) -> std::result::Result<[u32; 5], AppError> {
+    let saved: Option<DailyNamesRow> = db
+        .prepare("SELECT date, name_ids FROM daily_names WHERE date = ?1")
+        .bind(&[date.into()])?
+        .first(None)
+        .await?;
+    if let Some(ids) = saved.and_then(|row| game::parse_name_ids(&row.name_ids)) {
+        return Ok(ids);
+    }
+
+    let seed = game::daily_seed(secret, date);
+    let ids = if date < game::FAME_START {
+        game::daily_name_ids(seed)
+    } else {
+        let mut ids = [0u32; 5];
+        for (i, draw) in game::daily_draws(seed).into_iter().enumerate() {
+            let round = i as u32 + 1;
+            ids[i] = pick_round_name(db, round, draw).await?.ok_or_else(|| {
+                AppError::Internal(format!("round_names has nothing for round {round}"))
+            })?;
+        }
+        ids
+    };
+
+    db.prepare("INSERT INTO daily_names (date, name_ids) VALUES (?1, ?2) ON CONFLICT DO NOTHING")
+        .bind(&[date.into(), game::format_name_ids(&ids).into()])?
+        .run()
+        .await?;
+    Ok(ids)
 }
 
 #[worker::send]
@@ -552,7 +610,7 @@ async fn daily_start(
         .ok_or_else(|| AppError::Internal("daily row missing after insert".to_string()))?;
 
     let secret = env.secret("DAILY_SECRET")?.to_string();
-    let ids = game::daily_name_ids(game::daily_seed(&secret, &date));
+    let ids = daily_ids(&db, &secret, &date).await?;
 
     let mut scores: Vec<Option<u32>> = row
         .scores
@@ -625,7 +683,7 @@ async fn daily_guess(
     }
 
     let secret = env.secret("DAILY_SECRET")?.to_string();
-    let ids = game::daily_name_ids(game::daily_seed(&secret, &req.date));
+    let ids = daily_ids(&db, &secret, &req.date).await?;
     let result = score_guess(&db, ids[row.round as usize], req.lat, req.lon).await?;
 
     let updated: PlayRow = db
@@ -1469,13 +1527,24 @@ async fn daily_archive(
     }
 
     let secret = env.secret("DAILY_SECRET")?.to_string();
+    let saved: Vec<DailyNamesRow> = db
+        .prepare("SELECT date, name_ids FROM daily_names WHERE date >= ?1")
+        .bind(&[game::ARCHIVE_START.into()])?
+        .all()
+        .await?
+        .results()?;
+    let saved: std::collections::HashMap<String, [u32; 5]> = saved
+        .into_iter()
+        .filter_map(|r| Some((r.date, game::parse_name_ids(&r.name_ids)?)))
+        .collect();
     let mut finished_ids = Vec::new();
     for (date, (round, _)) in &plays {
         if *round >= 5 {
-            finished_ids.push((
-                date.clone(),
-                game::daily_name_ids(game::daily_seed(&secret, date)),
-            ));
+            let ids = match saved.get(date) {
+                Some(ids) => *ids,
+                None => daily_ids(&db, &secret, date).await?,
+            };
+            finished_ids.push((date.clone(), ids));
         }
     }
     let all_ids: Vec<u32> = finished_ids.iter().flat_map(|(_, ids)| *ids).collect();

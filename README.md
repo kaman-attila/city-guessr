@@ -23,7 +23,7 @@ Play it at **[pinthecity.me](https://pinthecity.me)**.
 | API | Rust on Cloudflare Workers (`workers-rs` + axum) |
 | Database | Cloudflare D1 (SQLite) |
 | Email | Resend (address confirmation and password reset) |
-| City data | GeoNames `cities5000`, converted by a small Rust tool |
+| City data | GeoNames `cities5000`, ranked by fame using Wikidata, converted by a small Rust tool |
 
 ## Repository layout
 
@@ -44,14 +44,20 @@ import/   Rust tool that turns the GeoNames dump into SQL files for D1
 ### 1. Build the city data
 
 1. Download [`cities5000.zip`](https://download.geonames.org/export/dump/cities5000.zip) from GeoNames and unzip `cities5000.txt` into `import/data/`.
-2. Generate the SQL files:
+2. Fetch how famous each city is (its number of Wikipedia language versions, from Wikidata). It takes a few minutes and writes `import/data/sitelinks.tsv`:
 
    ```bash
    cd import
+   python fetch_fame.py
+   ```
+
+3. Generate the SQL files:
+
+   ```bash
    cargo run --release
    ```
 
-   This writes `names_*.sql` and `cities_*.sql` into `import/out/`.
+   This writes `names_*.sql`, `cities_*.sql` and `round_names_*.sql` into `import/out/`. Rounds pick their cities from `round_names`: the most famous cities come first, and the later rounds are weighted so a few countries don't take over.
 
 ### 2. Set up the API
 
@@ -74,7 +80,7 @@ npx wrangler d1 migrations apply DB --local
 ```
 
 ```powershell
-Get-ChildItem ..\import\out\names_*.sql, ..\import\out\cities_*.sql | ForEach-Object { npx wrangler d1 execute DB --local --file $_.FullName }
+Get-ChildItem ..\import\out\names_*.sql, ..\import\out\cities_*.sql, ..\import\out\round_names_*.sql | ForEach-Object { npx wrangler d1 execute DB --local --file $_.FullName }
 ```
 
 Then start the API on port 8787:
