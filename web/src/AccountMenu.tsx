@@ -14,6 +14,7 @@ import {
 import { type Settings } from './settings'
 import {
   ChevronDownIcon,
+  FlameIcon,
   GoogleIcon,
   LogOutIcon,
   MonitorIcon,
@@ -208,6 +209,23 @@ export default function AccountMenu({
                 </div>
                 <div className="meter">
                   <div style={{ width: `${(profile.best_score / 5000) * 100}%` }} />
+                </div>
+              </div>
+              <div className="stat-row">
+                <div className="stat">
+                  <span className="label">Daily best</span>
+                  <span className="mono stat-value">
+                    {profile.daily_best}
+                    <small> / 5000</small>
+                  </span>
+                </div>
+                <div className={profile.streak > 0 ? 'stat stat-streak on' : 'stat stat-streak'}>
+                  <span className="label">Streak</span>
+                  <span className="stat-value">
+                    <FlameIcon size={20} />
+                    <span className="mono">{profile.streak}</span>
+                    <small>{profile.streak === 1 ? 'day' : 'days'}</small>
+                  </span>
                 </div>
               </div>
               {!profile.email_verified && (

@@ -195,6 +195,7 @@ export default function App() {
     <Menu
       account={accountButton}
       bestScore={profile?.best_score ?? null}
+      streak={profile?.streak ?? 0}
       onDaily={() => {
         setDailyDay(null)
         setScreen('daily')

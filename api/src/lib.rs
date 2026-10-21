@@ -169,6 +169,12 @@ struct PlayRow {
 }
 
 #[derive(Deserialize)]
+struct StreakRow {
+    date: String,
+    finished_on: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct GuessPlayRow {
     round: u32,
     replays: u32,
@@ -261,6 +267,8 @@ struct Profile {
     has_password: bool,
     is_admin: bool,
     providers: Vec<String>,
+    daily_best: u32,
+    streak: u32,
     best_score: u32,
     theme: String,
     units: String,
@@ -276,6 +284,7 @@ struct ProfileRow {
     best_score: u32,
     theme: String,
     units: String,
+    daily_best: u32,
 }
 
 #[derive(Deserialize)]
@@ -738,7 +747,8 @@ async fn daily_guess(
     let updated: PlayRow = db
         .prepare(
             "UPDATE daily_plays SET round = round + 1, score = score + ?1, \
-             scores = CASE WHEN scores = '' THEN ?5 ELSE scores || ',' || ?5 END \
+             scores = CASE WHEN scores = '' THEN ?5 ELSE scores || ',' || ?5 END, \
+             finished_on = CASE WHEN round + 1 >= 5 THEN COALESCE(finished_on, ?6) ELSE finished_on END \
              WHERE player_id = ?2 AND date = ?3 AND round = ?4 \
              RETURNING round, score",
         )
@@ -748,6 +758,7 @@ async fn daily_guess(
             req.date.as_str().into(),
             row.round.into(),
             result.score.to_string().into(),
+            utc_date(0).into(),
         ])?
         .first(None)
         .await?
@@ -1451,6 +1462,14 @@ async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Resul
     struct BestRow {
         best_score: u32,
     }
+    db.prepare(
+        "UPDATE users SET daily_best = CASE WHEN daily_best_date = ?2 THEN MAX(daily_best, ?1) \
+         ELSE ?1 END, daily_best_date = ?2 WHERE id = ?3",
+    )
+    .bind(&[score.into(), utc_date(0).into(), user_id.into()])?
+    .run()
+    .await?;
+
     let Some(before) = db
         .prepare("SELECT best_score FROM users WHERE id = ?1")
         .bind(&[user_id.into()])?
@@ -1480,18 +1499,39 @@ async fn require_user(db: &D1Database, headers: &HeaderMap) -> std::result::Resu
 }
 
 async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Profile, AppError> {
+    let today = utc_date(0);
     let row: ProfileRow = db
         .prepare(
             "SELECT email, email_verified_at IS NOT NULL AS verified, pw_hash != '' AS has_password, \
              (SELECT GROUP_CONCAT(provider) FROM user_identities WHERE user_id = users.id) AS providers, \
-             is_admin, best_score, theme, units FROM users WHERE id = ?1",
+             is_admin, best_score, theme, units, \
+             CASE WHEN daily_best_date = ?2 THEN daily_best ELSE 0 END AS daily_best \
+             FROM users WHERE id = ?1",
         )
-        .bind(&[user_id.into()])?
+        .bind(&[user_id.into(), today.as_str().into()])?
         .first(None)
         .await?
         .ok_or_else(|| AppError::Internal(format!("session for missing user {user_id}")))?;
+
+    let plays: Vec<StreakRow> = db
+        .prepare(
+            "SELECT date, finished_on FROM daily_plays \
+             WHERE player_id = ?1 AND round >= 5 ORDER BY date DESC LIMIT 2000",
+        )
+        .bind(&[format!("u:{user_id}").into()])?
+        .all()
+        .await?
+        .results()?;
+    let on_time: Vec<&str> = plays
+        .iter()
+        .filter(|p| p.finished_on.as_deref() == Some(p.date.as_str()))
+        .map(|p| p.date.as_str())
+        .collect();
+
     Ok(Profile {
         email: row.email,
+        daily_best: row.daily_best,
+        streak: game::current_streak(&on_time, &today),
         email_verified: row.verified != 0,
         has_password: row.has_password != 0,
         is_admin: row.is_admin != 0,

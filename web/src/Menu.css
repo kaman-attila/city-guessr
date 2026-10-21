@@ -265,3 +265,16 @@
 .footer-link:hover {
   text-decoration: underline;
 }
+
+.mode-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-daily .streak-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--flame);
+}

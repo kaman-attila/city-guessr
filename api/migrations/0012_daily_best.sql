@@ -1,0 +1,3 @@
+-- Migration number: 0012 	 2026-10-22T18:00:00.000Z
+ALTER TABLE users ADD COLUMN daily_best INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN daily_best_date TEXT;

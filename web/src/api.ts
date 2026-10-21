@@ -63,6 +63,8 @@ export type Profile = {
   email_verified: boolean
   has_password: boolean
   is_admin: boolean
+  daily_best: number
+  streak: number
   providers: string[]
   best_score: number
   theme: Theme

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import TopBar, { Wordmark } from './TopBar'
-import { ArrowRightIcon, CalendarIcon, ClockIcon, InfinityIcon } from './icons'
+import { ArrowRightIcon, CalendarIcon, ClockIcon, FlameIcon, InfinityIcon } from './icons'
 import { useCountdown } from './useCountdown'
 import './Menu.css'
 import Globe from './Globe'
@@ -8,6 +8,7 @@ import Globe from './Globe'
 type Props = {
   account: ReactNode
   bestScore: number | null
+  streak: number
   onDaily: () => void
   onFreeplay: () => void
   onArchive: () => void
@@ -17,6 +18,7 @@ type Props = {
 export default function Menu({
   account,
   bestScore,
+  streak,
   onDaily,
   onFreeplay,
   onArchive,
@@ -47,7 +49,15 @@ export default function Menu({
               <span className="mode-icon">
                 <CalendarIcon size={24} strokeWidth={2.2} />
               </span>
-              <span className="mode-badge">5 CITIES</span>
+              <span className="mode-badges">
+                {streak > 0 && (
+                  <span className="mode-badge streak-badge" aria-label={`${streak} day streak`}>
+                    <FlameIcon size={14} />
+                    {streak}
+                  </span>
+                )}
+                <span className="mode-badge">5 CITIES</span>
+              </span>
             </span>
             <span>
               <span className="mode-title">Daily</span>

@@ -192,3 +192,9 @@ export const GoogleIcon = ({ size = 20 }: { size?: number }) => (
     />
   </svg>
 )
+
+export const FlameIcon = (p: IconProps) => (
+  <Icon fill="currentColor" stroke="none" {...p}>
+    <path d="M12.6 2.2c.5 3.1-1.1 4.9-2.6 6.6C8.5 10.5 6.6 12.4 6.6 15a5.4 5.4 0 0 0 10.8 0c0-2.4-1.2-4.2-2.5-5.6.1 1.7-.6 2.9-1.8 3.4.4-3.8-.3-7.6-.5-10.6z" />
+  </Icon>
+)

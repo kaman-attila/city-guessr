@@ -114,6 +114,32 @@ pub fn format_name_ids(ids: &[u32; 5]) -> String {
     ids.map(|id| id.to_string()).join(",")
 }
 
+pub fn current_streak(on_time_dates_newest_first: &[&str], today: &str) -> u32 {
+    let Some(today) = day_from_date(today) else {
+        return 0;
+    };
+    let days: Vec<i64> = on_time_dates_newest_first
+        .iter()
+        .filter_map(|d| day_from_date(d))
+        .collect();
+    let Some(&newest) = days.first() else {
+        return 0;
+    };
+    if newest < today - 1 {
+        return 0;
+    }
+    let mut expected = newest;
+    let mut streak = 0;
+    for day in days {
+        if day != expected {
+            break;
+        }
+        streak += 1;
+        expected -= 1;
+    }
+    streak
+}
+
 pub fn bucket_for(score: u32) -> u32 {
     (score / BUCKET_SIZE).min(BUCKETS - 1)
 }
@@ -254,6 +280,27 @@ mod tests {
         for bad in ["", "1,2,3,4", "1,2,3,4,5,6", "1,2,x,4,5", "1,,3,4,5"] {
             assert_eq!(parse_name_ids(bad), None, "{bad:?}");
         }
+    }
+
+    #[test]
+    fn streak_counts_days_in_a_row() {
+        let today = "2026-10-22";
+        assert_eq!(current_streak(&[], today), 0);
+        assert_eq!(current_streak(&["2026-10-22"], today), 1);
+        assert_eq!(
+            current_streak(&["2026-10-22", "2026-10-21", "2026-10-20"], today),
+            3
+        );
+        assert_eq!(current_streak(&["2026-10-21", "2026-10-20"], today), 2);
+        assert_eq!(current_streak(&["2026-10-20", "2026-10-19"], today), 0);
+        assert_eq!(
+            current_streak(&["2026-10-22", "2026-10-20", "2026-10-19"], today),
+            1
+        );
+        assert_eq!(
+            current_streak(&["2026-11-01", "2026-10-31"], "2026-11-01"),
+            2
+        );
     }
 
     #[test]
