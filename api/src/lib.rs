@@ -829,21 +829,41 @@ async fn daily_histogram(
     let players: u32 = counts.iter().sum();
 
     let mut your_score = None;
+    let mut player_id = None;
     if let Some(player) = current_player(&db, &headers).await? {
-        let player_id = player.key();
+        let key = player.key();
         let row: Option<PlayRow> = db
             .prepare("SELECT round, score FROM daily_plays WHERE player_id = ?1 AND date = ?2")
-            .bind(&[player_id.as_str().into(), date.as_str().into()])?
+            .bind(&[key.as_str().into(), date.as_str().into()])?
             .first(None)
             .await?;
         your_score = row.filter(|r| r.round >= 5).map(|r| r.score);
+        player_id = Some(key);
     }
 
-    let better_than_percent = match your_score {
-        Some(score) if players > 0 => {
-            let your_bucket = game::bucket_for(score) as usize;
-            let below: u32 = counts[..your_bucket].iter().sum();
-            Some(below * 100 / players)
+    let others = players.saturating_sub(1);
+    let better_than_percent = match (your_score, &player_id) {
+        (Some(score), Some(key)) if others > 0 => {
+            let your_bucket = game::bucket_for(score);
+            let below_bucket: u32 = counts[..your_bucket as usize].iter().sum();
+            let same_bucket: CountRow = db
+                .prepare(
+                    "SELECT COUNT(*) AS n FROM daily_plays WHERE date = ?1 AND round >= 5 \
+                     AND score >= ?2 AND score < ?3 AND player_id != ?4",
+                )
+                .bind(&[
+                    date.as_str().into(),
+                    (your_bucket * game::BUCKET_SIZE).into(),
+                    score.into(),
+                    key.as_str().into(),
+                ])?
+                .first(None)
+                .await?
+                .ok_or_else(|| AppError::Internal("count query returned nothing".to_string()))?;
+            let beaten_in_bucket = same_bucket
+                .n
+                .min(counts[your_bucket as usize].saturating_sub(1));
+            Some(((below_bucket + beaten_in_bucket) * 100 / others).min(100))
         }
         _ => None,
     };

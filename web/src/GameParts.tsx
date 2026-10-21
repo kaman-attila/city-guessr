@@ -1,8 +1,11 @@
-import type { ReactNode } from 'react'
-import { ArrowRightIcon, CheckIcon, CloseIcon, PinIcon, StarIcon } from './icons'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { ArrowRightIcon, CheckIcon, CloseIcon, PinIcon, ShareIcon, StarIcon } from './icons'
 import { formatDistance } from './settings'
 import { type GuessResult, type Units } from './api'
+import { shareOrCopy } from './share'
 import './Game.css'
+
+const MIN_HEADING_PX = 18
 
 type ResultPanelProps = {
   result: GuessResult
@@ -13,10 +16,72 @@ type ResultPanelProps = {
 }
 
 export function CityHeading({ name }: { name: string | null }) {
+  const ref = useRef<HTMLHeadingElement>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const heading = el
+
+    function fit() {
+      heading.style.fontSize = ''
+      for (let i = 0; i < 3 && heading.scrollWidth > heading.clientWidth; i++) {
+        const size = parseFloat(getComputedStyle(heading).fontSize)
+        const shrunk = Math.floor((size * heading.clientWidth) / heading.scrollWidth)
+        heading.style.fontSize = `${Math.max(MIN_HEADING_PX, shrunk)}px`
+      }
+    }
+
+    fit()
+    document.fonts?.ready.then(fit)
+    const observer = new ResizeObserver(fit)
+    if (heading.parentElement) observer.observe(heading.parentElement)
+    return () => observer.disconnect()
+  }, [name])
+
   return (
     <div className="city-heading">
-      <h1 className="display city-name">{name ?? '\u00a0'}</h1>
+      <h1 ref={ref} className="display city-name">
+        {name ?? '\u00a0'}
+      </h1>
     </div>
+  )
+}
+
+export function ShareButton({ getText }: { getText: () => string }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
+
+  async function share() {
+    try {
+      const outcome = await shareOrCopy(getText())
+      if (outcome === 'copied') {
+        setState('copied')
+        setTimeout(() => setState('idle'), 2500)
+      }
+    } catch {
+      setState('failed')
+    }
+  }
+
+  return (
+    <>
+      <button className="btn-pill share-btn" onClick={share} aria-live="polite">
+        {state === 'copied' ? (
+          <>
+            <CheckIcon size={22} strokeWidth={2.6} />
+            Copied! Paste it anywhere
+          </>
+        ) : (
+          <>
+            <ShareIcon size={22} strokeWidth={2.4} />
+            Share your result
+          </>
+        )}
+      </button>
+      {state === 'failed' && (
+        <p className="error share-error">Couldn't copy. Your browser blocked the clipboard.</p>
+      )}
+    </>
   )
 }
 

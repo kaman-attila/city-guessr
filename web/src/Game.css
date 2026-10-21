@@ -1,4 +1,6 @@
 .city-heading {
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -7,6 +9,7 @@
 }
 
 .city-name {
+  max-width: 100%;
   margin: 0;
   font-size: clamp(36px, 6vw, 72px);
   line-height: 1.02;
@@ -250,5 +253,44 @@
 
   .result-points {
     font-size: 40px;
+  }
+}
+
+.btn-pill {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+  font-size: 15px;
+  transition: transform 0.15s ease;
+}
+
+.btn-pill-quiet {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.share-btn {
+  position: relative;
+  padding: 0 24px 0 18px;
+  font-size: 16px;
+}
+
+.share-error {
+  position: relative;
+  margin: -8px 0 0;
+  font-size: 14px;
+}
+
+@media (hover: hover) {
+  .btn-pill:hover {
+    transform: scale(1.04);
   }
 }

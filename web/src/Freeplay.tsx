@@ -18,7 +18,9 @@ import {
   CenterCard,
   NewBestBadge,
   ResultPanel,
+  ShareButton,
 } from './GameParts'
+import { freeplayShareText } from './share'
 
 type GameState =
   | { phase: 'start' }
@@ -116,6 +118,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
               <small> / 5000</small>
             </div>
             {previousBest !== null && <NewBestBadge previous={previousBest} />}
+            <ShareButton getText={() => freeplayShareText(total, scores, window.location.origin)} />
             <button className="fab" aria-label="Play again" onClick={startGame}>
               <ReplayIcon size={32} strokeWidth={2.6} />
             </button>

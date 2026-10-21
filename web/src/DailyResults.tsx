@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { type Histogram } from './api'
 import Globe from './Globe'
 import HistogramChart from './HistogramChart'
-import { CalendarIcon, CheckIcon, ClockIcon, InfinityIcon, ShareIcon } from './icons'
-import { NewBestBadge } from './GameParts'
-import { dailyShareText, shareOrCopy } from './share'
+import { CalendarIcon, ClockIcon, InfinityIcon } from './icons'
+import { NewBestBadge, ShareButton } from './GameParts'
+import { dailyShareText } from './share'
 import { useCountdown } from './useCountdown'
 import './DailyResults.css'
 
@@ -44,26 +43,6 @@ export default function DailyResults({
 }: Props) {
   const countdown = useCountdown()
   const better = histogram.better_than_percent
-  const [shareState, setShareState] = useState<'idle' | 'copied' | 'failed'>('idle')
-
-  async function share() {
-    const text = dailyShareText(
-      date,
-      number,
-      total,
-      (rounds ?? []).map((r) => r.score),
-      window.location.origin,
-    )
-    try {
-      const outcome = await shareOrCopy(text)
-      if (outcome === 'copied') {
-        setShareState('copied')
-        setTimeout(() => setShareState('idle'), 2500)
-      }
-    } catch {
-      setShareState('failed')
-    }
-  }
 
   return (
     <main className="daily-results">
@@ -89,22 +68,17 @@ export default function DailyResults({
 
       {previousBest !== null && <NewBestBadge previous={previousBest} />}
 
-      <button className="btn-pill share-btn" onClick={share} aria-live="polite">
-        {shareState === 'copied' ? (
-          <>
-            <CheckIcon size={22} strokeWidth={2.6} />
-            Copied! Paste it anywhere
-          </>
-        ) : (
-          <>
-            <ShareIcon size={22} strokeWidth={2.4} />
-            Share your result
-          </>
-        )}
-      </button>
-      {shareState === 'failed' && (
-        <p className="error share-error">Couldn't copy. Your browser blocked the clipboard.</p>
-      )}
+      <ShareButton
+        getText={() =>
+          dailyShareText(
+            date,
+            number,
+            total,
+            (rounds ?? []).map((r) => r.score),
+            window.location.origin,
+          )
+        }
+      />
 
       {rounds && (
         <ol className="round-chips">

@@ -23,6 +23,11 @@ export function dailyShareText(
   return `PinTheCity Daily #${number} · ${day}\n${squares} ${total} / 5000\n${siteUrl}`
 }
 
+export function freeplayShareText(total: number, scores: number[], siteUrl: string): string {
+  const squares = scores.map(roundEmoji).join('')
+  return `PinTheCity Freeplay\n${squares} ${total} / 5000\n${siteUrl}`
+}
+
 export async function shareOrCopy(text: string): Promise<'shared' | 'copied' | 'cancelled'> {
   const touch = window.matchMedia('(pointer: coarse)').matches
   if (touch && navigator.share) {
