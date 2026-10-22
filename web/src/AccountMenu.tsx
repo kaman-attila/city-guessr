@@ -12,7 +12,7 @@ import {
   type Units,
 } from './api'
 import { type Settings } from './settings'
-import { regionLabel } from './gameOptions'
+import { regionShortLabel } from './gameOptions'
 import {
   ChevronDownIcon,
   FlameIcon,
@@ -235,7 +235,7 @@ export default function AccountMenu({
                   <ul>
                     {profile.region_bests.map((r) => (
                       <li key={r.region}>
-                        <span>{regionLabel(r.region)}</span>
+                        <span>{regionShortLabel(r.region)}</span>
                         <span className="mono">{r.best}</span>
                       </li>
                     ))}

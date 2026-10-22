@@ -44,7 +44,7 @@ import/   Rust tool that turns the GeoNames dump into SQL files for D1
 ### 1. Build the city data
 
 1. Download [`cities5000.zip`](https://download.geonames.org/export/dump/cities5000.zip) from GeoNames and unzip `cities5000.txt` into `import/data/`. Also download [`countryInfo.txt`](https://download.geonames.org/export/dump/countryInfo.txt) into the same folder; it tells the import which continent each country is on, for the continent games.
-2. Fetch how famous each city is (its number of Wikipedia language versions, from Wikidata). It takes a few minutes and writes `import/data/sitelinks.tsv`:
+2. Fetch how famous each city is (its number of Wikipedia language versions, from Wikidata). Cities whose Wikidata link looks wrong (big cities with few articles) are also looked up by their English Wikipedia title. It takes a while and writes `import/data/sitelinks.tsv`:
 
    ```bash
    cd import
@@ -76,7 +76,7 @@ import/   Rust tool that turns the GeoNames dump into SQL files for D1
    cargo run --release
    ```
 
-   The second run also writes `renames_*.sql`, which updates the names in an existing database. Rounds pick their cities from `round_names`: the most famous cities come first, and the later rounds are weighted so a few countries don't take over.
+   The second run also writes `renames_*.sql`, which updates the names in an existing database. Rounds pick their cities from `round_names`: the most famous cities come first, and the later rounds are weighted so a few countries don't take over. Towns under 50,000 people, except capitals, have their Wikipedia count scaled down, so a small town with many bot-written articles doesn't land in the easy rounds. Places count as the same name when either their GeoNames spelling or their map spelling matches.
 
 4. Only when the borders need updating: `api/data/borders.bin` is committed and compiled into the Worker, which uses it to give a hidden bonus when a pin lands in the right country. To rebuild it, download [`ne_50m_admin_0_countries.geojson`](https://github.com/nvkelso/natural-earth-vector/tree/master/geojson) into `import/data/borders/` and run `python build_borders.py`. Each border piece gets the GeoNames country code that most of the cities inside it use, so codes like French Guiana (`GF`) match the city data.
 

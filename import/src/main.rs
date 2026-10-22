@@ -11,6 +11,8 @@ const ROUND_RANKS: [(usize, usize); 5] = [
 ];
 const COUNTRY_EXPONENTS: [f64; 5] = [1.0, 1.0, 0.5, 0.5, 0.5];
 const UNFILTERED_RANKS: usize = 1000;
+const BURIED_POPULATION: u64 = 500_000;
+const SMALL_TOWN_POPULATION: u64 = 50_000;
 const WORLD: &str = "world";
 const POOLS: [&str; 7] = [WORLD, "EU", "AS", "AF", "NA", "SA", "OC"];
 const URALS_LON: f64 = 60.0;
@@ -67,6 +69,23 @@ fn parse_city(line: &str) -> City {
     }
 }
 
+fn fame_score(links: u32, city: &City) -> f64 {
+    let links = links as f64;
+    if city.feature_code == "PPLC" || city.population >= SMALL_TOWN_POPULATION {
+        return links;
+    }
+    links * (city.population as f64 / SMALL_TOWN_POPULATION as f64).sqrt()
+}
+
+fn group_key(name: &str) -> String {
+    deunicode::deunicode(name)
+        .replace('`', "'")
+        .to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn sql_str(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
@@ -86,6 +105,7 @@ fn read_sitelinks() -> std::io::Result<HashMap<String, u32>> {
 struct Fame {
     name_id: u32,
     links: u32,
+    score: f64,
     population: u64,
     country: String,
     skip: Option<&'static str>,
@@ -215,8 +235,8 @@ impl Filters {
 
 fn round_name_values(mut fame: Vec<Fame>) -> (Vec<String>, Vec<String>) {
     fame.sort_by(|a, b| {
-        b.links
-            .cmp(&a.links)
+        b.score
+            .total_cmp(&a.score)
             .then(b.population.cmp(&a.population))
             .then(a.name_id.cmp(&b.name_id))
     });
@@ -235,6 +255,23 @@ fn round_name_values(mut fame: Vec<Fame>) -> (Vec<String>, Vec<String>) {
         .map(|(_, name)| name)
         .collect();
     println!("left out of the rounds: {skipped:?}");
+    let hard_end = ROUND_RANKS[2].1;
+    let buried: Vec<String> = fame
+        .iter()
+        .enumerate()
+        .filter(|(rank, name)| *rank >= hard_end && name.population >= BURIED_POPULATION)
+        .map(|(rank, name)| {
+            let shown = name.shown_city.rsplit('\t').next().unwrap_or("");
+            format!("{shown} (rank {}, {} links)", rank + 1, name.links)
+        })
+        .collect();
+    println!(
+        "cities over {BURIED_POPULATION} people ranked below round 3: {}",
+        buried.len()
+    );
+    for line in buried.iter().take(40) {
+        println!("  {line}");
+    }
 
     let mut values = Vec::new();
     let mut shown_cities = Vec::new();
@@ -334,9 +371,27 @@ fn main() -> std::io::Result<()> {
     println!("cities: {}", cities.len());
 
     let filters = Filters::load(&cities)?;
+    let mut parent: Vec<usize> = (0..cities.len()).collect();
+    fn root(parent: &mut [usize], mut i: usize) -> usize {
+        while parent[i] != i {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        i
+    }
+    let mut first_with_key: HashMap<String, usize> = HashMap::new();
+    for (i, city) in cities.iter().enumerate() {
+        for key in [city.ascii.to_lowercase(), group_key(&city.name)] {
+            let other = *first_with_key.entry(key).or_insert(i);
+            let (a, b) = (root(&mut parent, i), root(&mut parent, other));
+            parent[a.max(b)] = a.min(b);
+        }
+    }
+    let keys: Vec<String> = (0..cities.len())
+        .map(|i| cities[root(&mut parent, i)].ascii.to_lowercase())
+        .collect();
     let mut city_groups: HashMap<String, Vec<City>> = HashMap::new();
-    for city in cities {
-        let key = city.ascii.to_lowercase();
+    for (city, key) in cities.into_iter().zip(keys) {
         city_groups.entry(key).or_default().push(city);
     }
     println!("groups: {}", city_groups.len());
@@ -377,18 +432,19 @@ fn main() -> std::io::Result<()> {
         let city_count = list.len() as u32;
         let display_name = list[0].name.clone();
 
+        let links_of = |c: &City| sitelinks.get(&c.geoname_id).copied().unwrap_or(0);
         let famous = list
             .iter()
-            .max_by_key(|c| {
-                (
-                    sitelinks.get(&c.geoname_id).copied().unwrap_or(0),
-                    c.population,
-                )
+            .max_by(|a, b| {
+                fame_score(links_of(a), a)
+                    .total_cmp(&fame_score(links_of(b), b))
+                    .then(a.population.cmp(&b.population))
             })
             .unwrap();
         fame.push(Fame {
             name_id,
-            links: sitelinks.get(&famous.geoname_id).copied().unwrap_or(0),
+            links: links_of(famous),
+            score: fame_score(links_of(famous), famous),
             population: famous.population,
             country: famous.country.clone(),
             skip: filters.skip_reason(famous),

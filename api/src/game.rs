@@ -1,10 +1,10 @@
-use sha2::{Digest, Sha256};
+﻿use sha2::{Digest, Sha256};
 
 const EARTH_RADIUS_IN_METERS: f64 = 6371000.0;
 const MAX_POINTS: f64 = 1000.0;
 const FULL_POINTS_RADIUS_IN_METERS: f64 = 10000.0;
 const DECAY_IN_METERS: f64 = 1500000.0;
-pub const TOTAL_NAMES: u32 = 59383;
+pub const TOTAL_NAMES: u32 = 59297;
 pub const BUCKET_SIZE: u32 = 250;
 pub const BUCKETS: u32 = 20;
 pub const ARCHIVE_START: &str = "2026-10-21";
