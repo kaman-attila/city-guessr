@@ -42,6 +42,125 @@ function addGuessLine(map: maplibregl.Map, data: LineData) {
   })
 }
 
+const BORDER_WIDTH: maplibregl.ExpressionSpecification = [
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  0,
+  0.8,
+  3,
+  1.3,
+  6,
+  1.9,
+  12,
+  3.2,
+]
+
+type PaintArgs = Parameters<maplibregl.Map['setPaintProperty']>
+type LayoutArgs = Parameters<maplibregl.Map['setLayoutProperty']>
+
+function setPaint(map: maplibregl.Map, layer: string, property: PaintArgs[1], value: PaintArgs[2]) {
+  if (map.getLayer(layer)) map.setPaintProperty(layer, property, value)
+}
+
+function setLayout(
+  map: maplibregl.Map,
+  layer: string,
+  property: LayoutArgs[1],
+  value: LayoutArgs[2],
+) {
+  if (map.getLayer(layer)) map.setLayoutProperty(layer, property, value)
+}
+
+function tuneLightStyle(map: maplibregl.Map) {
+  for (const layer of ['boundary_2', 'boundary_disputed']) {
+    setPaint(map, layer, 'line-color', '#7d869e')
+    setPaint(map, layer, 'line-opacity', 1)
+    setPaint(map, layer, 'line-width', BORDER_WIDTH)
+  }
+  if (map.getLayer('label_country_3') && map.getLayer('label_city_capital')) {
+    map.moveLayer('label_country_3', 'label_city_capital')
+  }
+}
+
+function fixMissingIcons(map: maplibregl.Map) {
+  for (const layer of map.getStyle().layers) {
+    if (layer.type !== 'symbol') continue
+    const icon = layer.layout?.['icon-image']
+    if (icon === undefined || !JSON.stringify(icon).includes('circle-11')) continue
+    const fixed = JSON.parse(JSON.stringify(icon).replaceAll('circle-11', 'circle_11'))
+    map.setLayoutProperty(layer.id, 'icon-image', fixed)
+  }
+}
+
+function tuneDarkStyle(map: maplibregl.Map) {
+  fixMissingIcons(map)
+
+  for (const layer of ['boundary_country_z0-4', 'boundary_country_z5-']) {
+    if (!map.getLayer(layer)) continue
+    const filter = map.getFilter(layer) as maplibregl.ExpressionSpecification | null | undefined
+    map.setFilter(layer, ['all', ['!=', ['get', 'maritime'], 1], ...(filter ? [filter] : [])])
+    setPaint(map, layer, 'line-color', '#7a84a6')
+    setPaint(map, layer, 'line-blur', 0)
+    setPaint(map, layer, 'line-width', BORDER_WIDTH)
+  }
+
+  if (map.getLayer('place_other')) {
+    for (const layer of ['place_state', 'place_country_other']) {
+      if (map.getLayer(layer)) map.moveLayer(layer, 'place_other')
+    }
+  }
+  if (map.getLayer('place_country_minor') && map.getLayer('place_city_large')) {
+    map.moveLayer('place_country_minor', 'place_city_large')
+  }
+  setPaint(map, 'place_state', 'text-color', 'rgb(88,92,108)')
+
+  setPaint(map, 'place_city_large', 'text-color', '#d4d8e6')
+  setPaint(map, 'place_city', 'text-color', '#c3c8d9')
+  setPaint(map, 'place_town', 'text-color', '#a9afc3')
+  setPaint(map, 'place_village', 'text-color', '#8c93aa')
+  for (const layer of ['place_country_major', 'place_country_minor', 'place_country_other']) {
+    setPaint(map, layer, 'text-color', '#9aa1ba')
+  }
+
+  setLayout(map, 'place_city_large', 'text-size', [
+    'interpolate',
+    ['exponential', 1.2],
+    ['zoom'],
+    4,
+    13,
+    7,
+    15,
+    11,
+    19,
+  ])
+  setLayout(map, 'place_city', 'text-size', [
+    'interpolate',
+    ['exponential', 1.2],
+    ['zoom'],
+    4,
+    11,
+    7,
+    13,
+    11,
+    17,
+  ])
+  setLayout(map, 'place_town', 'text-size', [
+    'interpolate',
+    ['exponential', 1.2],
+    ['zoom'],
+    6,
+    10,
+    11,
+    14,
+  ])
+}
+
+function tuneStyle(map: maplibregl.Map) {
+  if (map.getLayer('place_state')) tuneDarkStyle(map)
+  else tuneLightStyle(map)
+}
+
 function pinElement(): HTMLElement {
   const el = document.createElement('div')
   el.className = 'map-pin'
@@ -98,7 +217,10 @@ export default function MapView({ guess, onMapClick, result, dark, units }: Prop
     })
     mapRef.current = map
 
-    map.on('style.load', () => addGuessLine(map, lineDataRef.current))
+    map.on('style.load', () => {
+      tuneStyle(map)
+      addGuessLine(map, lineDataRef.current)
+    })
 
     map.on('click', (e) => {
       const { lat, lng } = e.lngLat.wrap()
