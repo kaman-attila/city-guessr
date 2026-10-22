@@ -10,6 +10,8 @@ const ROUND_RANKS: [(usize, usize); 5] = [
     (10001, 29691),
 ];
 const COUNTRY_EXPONENTS: [f64; 5] = [1.0, 1.0, 0.5, 0.5, 0.5];
+const CONTINENT_MIN_ENDS: [usize; 5] = [40, 150, 400, 800, 1500];
+const CONTINENT_MAX_SHARE: [f64; 5] = [0.1, 0.25, 0.5, 0.75, 1.0];
 const UNFILTERED_RANKS: usize = 1000;
 const BURIED_POPULATION: u64 = 500_000;
 const SMALL_TOWN_POPULATION: u64 = 50_000;
@@ -111,6 +113,7 @@ struct Fame {
     skip: Option<&'static str>,
     shown_city: String,
     continent: &'static str,
+    rank: usize,
 }
 
 fn read_continents() -> std::io::Result<HashMap<String, &'static str>> {
@@ -233,7 +236,53 @@ impl Filters {
     }
 }
 
-fn round_name_values(mut fame: Vec<Fame>) -> (Vec<String>, Vec<String>) {
+fn pool_values(pool: &str, round: usize, names: &[&Fame], values: &mut Vec<String>) {
+    let exponent = COUNTRY_EXPONENTS[round];
+    let mut per_country: HashMap<&str, usize> = HashMap::new();
+    for name in names {
+        *per_country.entry(name.country.as_str()).or_default() += 1;
+    }
+    let mut counts: Vec<(&str, usize)> = per_country.iter().map(|(c, n)| (*c, *n)).collect();
+    counts.sort_unstable();
+    let total: f64 = counts
+        .iter()
+        .map(|&(_, n)| (n as f64).powf(exponent))
+        .sum();
+
+    let mut cum = 0.0;
+    for (i, name) in names.iter().enumerate() {
+        let n = per_country[name.country.as_str()] as f64;
+        cum += n.powf(exponent) / total / n;
+        let point = if i + 1 == names.len() { 1.0 } else { cum };
+        values.push(format!(
+            "('{pool}', {}, {point}, {})",
+            round + 1,
+            name.name_id
+        ));
+    }
+    println!(
+        "{pool} round {}: {} names from {} countries",
+        round + 1,
+        names.len(),
+        per_country.len()
+    );
+}
+
+fn continent_ends(ranked: &[&Fame], world_ends: &[usize; 5]) -> [usize; 5] {
+    let mut ends = [0usize; 5];
+    let mut previous = 0;
+    for round in 0..5 {
+        let in_world_band = ranked.iter().filter(|n| n.rank < world_ends[round]).count();
+        let share_cap = (ranked.len() as f64 * CONTINENT_MAX_SHARE[round]).floor() as usize;
+        let topped_up = in_world_band.max(CONTINENT_MIN_ENDS[round].min(share_cap));
+        let end = topped_up.max(previous + 1).min(ranked.len());
+        ends[round] = end;
+        previous = end;
+    }
+    ends
+}
+
+fn round_name_values(mut fame: Vec<Fame>) -> (Vec<String>, Vec<String>, Vec<String>) {
     fame.sort_by(|a, b| {
         b.score
             .total_cmp(&a.score)
@@ -242,7 +291,7 @@ fn round_name_values(mut fame: Vec<Fame>) -> (Vec<String>, Vec<String>) {
     });
 
     let mut skipped: HashMap<&str, usize> = HashMap::new();
-    let fame: Vec<Fame> = fame
+    let mut fame: Vec<Fame> = fame
         .into_iter()
         .enumerate()
         .filter(|(rank, name)| match name.skip {
@@ -273,50 +322,39 @@ fn round_name_values(mut fame: Vec<Fame>) -> (Vec<String>, Vec<String>) {
         println!("  {line}");
     }
 
-    let mut values = Vec::new();
+    for (rank, name) in fame.iter_mut().enumerate() {
+        name.rank = rank;
+    }
+
+    let mut world_values = Vec::new();
     let mut shown_cities = Vec::new();
-    for (round, (&(first, last), &exponent)) in
-        ROUND_RANKS.iter().zip(&COUNTRY_EXPONENTS).enumerate()
-    {
-        let band = &fame[first - 1..last.min(fame.len())];
+    let world_ends = ROUND_RANKS.map(|(_, last)| last.min(fame.len()));
+    for (round, &(first, _)) in ROUND_RANKS.iter().enumerate() {
+        let band: Vec<&Fame> = fame[first - 1..world_ends[round]].iter().collect();
         shown_cities.extend(band.iter().map(|name| name.shown_city.clone()));
-        for pool in POOLS {
-            let names: Vec<&Fame> = band
-                .iter()
-                .filter(|name| pool == WORLD || name.continent == pool)
-                .collect();
-            if names.is_empty() {
+        pool_values(WORLD, round, &band, &mut world_values);
+    }
+
+    let mut continent_values = Vec::new();
+    for pool in POOLS.iter().filter(|p| **p != WORLD) {
+        let ranked: Vec<&Fame> = fame.iter().filter(|n| n.continent == *pool).collect();
+        let ends = continent_ends(&ranked, &world_ends);
+        let mut start = 0;
+        for (round, &end) in ends.iter().enumerate() {
+            if end <= start {
                 panic!("pool {pool} has no names for round {}", round + 1);
             }
-            let mut per_country: HashMap<&str, usize> = HashMap::new();
-            for name in &names {
-                *per_country.entry(name.country.as_str()).or_default() += 1;
-            }
-            let total: f64 = per_country
-                .values()
-                .map(|&n| (n as f64).powf(exponent))
-                .sum();
-
-            let mut cum = 0.0;
-            for (i, name) in names.iter().enumerate() {
-                let n = per_country[name.country.as_str()] as f64;
-                cum += n.powf(exponent) / total / n;
-                let point = if i + 1 == names.len() { 1.0 } else { cum };
-                values.push(format!(
-                    "('{pool}', {}, {point}, {})",
-                    round + 1,
-                    name.name_id
-                ));
-            }
-            println!(
-                "{pool} round {}: {} names from {} countries",
-                round + 1,
-                names.len(),
-                per_country.len()
+            let band = &ranked[start..end];
+            shown_cities.extend(
+                band.iter()
+                    .filter(|n| n.rank >= world_ends[4])
+                    .map(|n| n.shown_city.clone()),
             );
+            pool_values(pool, round, band, &mut continent_values);
+            start = end;
         }
     }
-    (values, shown_cities)
+    (world_values, continent_values, shown_cities)
 }
 
 fn write_sql(prefix: &str, header: &str, values: &[String]) -> std::io::Result<()> {
@@ -453,6 +491,7 @@ fn main() -> std::io::Result<()> {
                 list[0].geoname_id, list[0].lat, list[0].lon, list[0].name
             ),
             continent: continent_of(famous, &continents),
+            rank: 0,
         });
         if renamed.contains(&list[0].geoname_id) {
             renames.push(format!(
@@ -522,13 +561,29 @@ fn main() -> std::io::Result<()> {
         "INSERT OR IGNORE INTO cities (id, name, lat, lon, country, population) VALUES",
         &city_values,
     )?;
-    let (round_values, shown_cities) = round_name_values(fame);
+    let (world_values, continent_values, shown_cities) = round_name_values(fame);
+    let all_values: Vec<String> = world_values
+        .iter()
+        .chain(&continent_values)
+        .cloned()
+        .collect();
     write_sql_after(
         "round_names",
         Some("DELETE FROM round_names;"),
         "INSERT INTO round_names (pool, round, cum, name_id) VALUES",
-        &round_values,
+        &all_values,
     )?;
+    write_sql_after(
+        "continent_pools",
+        Some("DELETE FROM round_names WHERE pool != 'world';"),
+        "INSERT INTO round_names (pool, round, cum, name_id) VALUES",
+        &continent_values,
+    )?;
+    println!(
+        "world pool rows: {}, continent pool rows: {}",
+        world_values.len(),
+        continent_values.len()
+    );
     std::fs::write("out/round_cities.tsv", shown_cities.join("\n") + "\n")?;
     println!("wrote out/round_cities.tsv");
     write_statements("renames", &renames)?;
