@@ -76,6 +76,16 @@ function thirdPartyLicenses(): Plugin {
 
 export default defineConfig({
   plugins: [react(), thirdPartyLicenses()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        howToPlay: 'how-to-play/index.html',
+        about: 'about/index.html',
+        faq: 'faq/index.html',
+      },
+    },
+  },
   optimizeDeps: {
     exclude: ['maplibre-gl'],
   },

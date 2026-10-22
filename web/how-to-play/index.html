@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-adsense-account" content="ca-pub-3120782577799020" />
+    <title>How to Play PinTheCity - Rules, Scoring and Tips</title>
+    <meta
+      name="description"
+      content="Learn how to play PinTheCity: drop a pin where you think a city is, score up to 1000 points per round, and climb from easy capitals to impossible small towns."
+    />
+    <link rel="canonical" href="https://pinthecity.me/how-to-play/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0a0f1f" />
+    <script>
+      try {
+        var t = JSON.parse(localStorage.getItem('pinthecity-settings') || '{}').theme
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
+    <script type="module" src="/src/pages.ts"></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <a class="page-logo" href="/">PinThe<span>City</span></a>
+      <nav class="page-nav" aria-label="Pages">
+        <a href="/how-to-play/" aria-current="page">How to play</a>
+        <a href="/about/">About</a>
+        <a href="/faq/">FAQ</a>
+        <a class="page-play" href="/">Play</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <h1>How to play PinTheCity</h1>
+      <p class="lead">
+        You get the name of a city. You drop a pin where you think it is. The closer your pin, the
+        more points you score. That is the whole game, and it is harder than it sounds.
+      </p>
+
+      <h2>A round, step by step</h2>
+      <ol>
+        <li>
+          <strong>Read the city name</strong> at the top of the screen. There is no photo, no
+          street view and no hint about the country. Only the name.
+        </li>
+        <li>
+          <strong>Find the spot on the map.</strong> Drag to move around and pinch or use the
+          + and − buttons to zoom. It is a normal map with borders and place names, so if you know
+          roughly where to look you can zoom in and check. Searching the whole world label by
+          label, though, would take a very long time.
+        </li>
+        <li>
+          <strong>Tap to drop your pin.</strong> You can move it as many times as you like. Nothing
+          counts until you press the round check button.
+        </li>
+        <li>
+          <strong>See how you did.</strong> A line is drawn from your pin to the real city, with
+          the distance in kilometres or miles, and you see the points you earned. Press the arrow
+          to go to the next city.
+        </li>
+      </ol>
+
+      <h2>Five rounds, from easy to impossible</h2>
+      <p>
+        Every game has five cities, and each one is harder than the last. The order is based on
+        how well known a city is around the world: we count how many different language editions
+        of Wikipedia have an article about it. A city that more than a hundred Wikipedias write
+        about is one most people have heard of. A town with an article in only a handful of
+        languages is a real test.
+      </p>
+      <ul class="rounds">
+        <li class="level-1"><strong>1 · Easy</strong><span>World capitals and famous cities</span></li>
+        <li class="level-2"><strong>2 · Medium</strong><span>Big regional cities</span></li>
+        <li class="level-3"><strong>3 · Hard</strong><span>Cities you may have heard of once</span></li>
+        <li class="level-4"><strong>4 · Expert</strong><span>Mid-sized towns all over the world</span></li>
+        <li class="level-5"><strong>5 · Impossible</strong><span>Small towns, often far from anywhere famous</span></li>
+      </ul>
+      <p>
+        In the later rounds we also make sure a few large countries do not take over the game, so
+        you meet towns from every continent instead of the same handful of countries.
+      </p>
+
+      <h2>How scoring works</h2>
+      <p>
+        Each round is worth up to <strong>1000 points</strong>, so a perfect game scores 5000. If
+        your pin lands within 10 km of the city you get the full 1000. After that the points fall
+        away smoothly the further you are:
+      </p>
+      <table class="score-table">
+        <thead>
+          <tr>
+            <th>Distance from the city</th>
+            <th>Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>up to 10 km</td><td>1000</td></tr>
+          <tr><td>100 km</td><td>about 940</td></tr>
+          <tr><td>500 km</td><td>about 720</td></tr>
+          <tr><td>1,000 km</td><td>about 520</td></tr>
+          <tr><td>2,000 km</td><td>about 265</td></tr>
+          <tr><td>5,000 km</td><td>about 35</td></tr>
+        </tbody>
+      </table>
+      <p>
+        This means a guess in the right region is always worth something, and you never lose
+        points for trying. Getting the continent right already beats a random guess by a lot.
+      </p>
+
+      <h3>When several places share a name</h3>
+      <p>
+        Many names exist more than once: there are Valencias in Spain and Venezuela, several
+        Springfields in the United States and more than one Santiago. If the name you get belongs
+        to more than one city, <strong>the one nearest to your pin counts</strong>. After you guess,
+        the result panel tells you how many places have that name and the map shows all of them.
+      </p>
+
+      <h2>The two game modes</h2>
+      <h3>Daily challenge</h3>
+      <p>
+        Every day at midnight (UTC) there is a new set of five cities, the same for everyone in the
+        world. You get one try. When you finish you see your total, how your score compares with
+        everybody else who played that day, and a chart of all the results. You can share your
+        result as a row of coloured squares without giving away the cities.
+      </p>
+      <p>
+        Missed a day? Every past daily challenge is in the <a href="/archive">daily archive</a>,
+        so you can play the ones you skipped and look back at the ones you finished.
+      </p>
+      <h3>Freeplay</h3>
+      <p>
+        Freeplay gives you five random cities, from easy to impossible, as often as you like. It
+        is the best way to practise before the daily challenge, or to learn a region of the world
+        you do not know well yet.
+      </p>
+
+      <h2>Accounts, best scores and streaks</h2>
+      <p>
+        You can play without signing up. If you create an account with your email or sign in with
+        Google, the game remembers your <strong>best score</strong>, your <strong>daily best</strong>
+        (your top score of the day, which starts again from zero every day) and your
+        <strong>streak</strong>: how many days in a row you have finished the daily challenge on
+        the day it came out. Skip a day and the streak starts again from zero.
+      </p>
+
+      <h2>Tips for better guesses</h2>
+      <ul>
+        <li>
+          <strong>Read the name for clues.</strong> Spelling often gives the language away:
+          "-ville" and "Saint-" point to France or Quebec, "-burg" and "-stadt" to Germany,
+          "San" and "Santa" to Spain or Latin America, "-pur" and "-abad" to India or Pakistan.
+        </li>
+        <li>
+          <strong>Aim for the middle when you are unsure.</strong> If you know the country but
+          not the city, a pin in the centre of the country keeps you close to anywhere in it.
+        </li>
+        <li>
+          <strong>Use big cities as landmarks.</strong> Remember that a town is "a bit north of
+          Lyon" or "between Delhi and Jaipur", and place it relative to a city you know.
+        </li>
+        <li>
+          <strong>Zoom in before you commit.</strong> A few kilometres can be the difference between
+          950 and 1000 points on the easy rounds.
+        </li>
+        <li>
+          <strong>Learn from the reveal.</strong> After every round the map shows the right answer.
+          Glance at what is around it; that city may come up again.
+        </li>
+      </ul>
+
+      <a class="page-cta" href="/">Start playing</a>
+    </main>
+
+    <footer class="page-footer">
+      <a href="/">Play</a>
+      <a href="/how-to-play/">How to play</a>
+      <a href="/about/">About</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/licenses.txt">Licenses</a>
+      <span>contact@pinthecity.me</span>
+    </footer>
+  </body>
+</html>

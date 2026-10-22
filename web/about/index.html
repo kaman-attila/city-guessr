@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-adsense-account" content="ca-pub-3120782577799020" />
+    <title>About PinTheCity - A Free Daily Geography Game</title>
+    <meta
+      name="description"
+      content="PinTheCity is a free geography game made by a student in Hungary. Learn where the cities come from, how they are chosen and how the game is built."
+    />
+    <link rel="canonical" href="https://pinthecity.me/about/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0a0f1f" />
+    <script>
+      try {
+        var t = JSON.parse(localStorage.getItem('pinthecity-settings') || '{}').theme
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
+    <script type="module" src="/src/pages.ts"></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <a class="page-logo" href="/">PinThe<span>City</span></a>
+      <nav class="page-nav" aria-label="Pages">
+        <a href="/how-to-play/">How to play</a>
+        <a href="/about/" aria-current="page">About</a>
+        <a href="/faq/">FAQ</a>
+        <a class="page-play" href="/">Play</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <h1>About PinTheCity</h1>
+      <p class="lead">
+        PinTheCity is a free geography game about one simple question: where in the world is this
+        city? It started as a side project to make learning the world map feel like a daily
+        puzzle instead of homework.
+      </p>
+
+      <h2>Why it exists</h2>
+      <p>
+        Most of us know the capitals and a few famous cities, and then the map goes blank. Names
+        like Kryvyi Rih, Mekelle or Rafsanjan belong to cities with hundreds of thousands of people,
+        yet very few of us could point to them. PinTheCity turns that gap into a game. Each guess
+        teaches you a little about where things are, and the daily challenge gives you a reason to
+        come back and learn a bit more every day.
+      </p>
+      <p>
+        The game is designed to be quick. A full game takes a few minutes, works on a phone as well
+        as on a computer, and needs no download or account. If you want to keep your best scores and
+        your streak, you can sign in, but it is never required.
+      </p>
+
+      <h2>Who makes it</h2>
+      <p>
+        PinTheCity is built and run by Attila Kámán, a computer science student from Hungary. It is
+        an independent project: there is no company or investor behind it, and decisions about the
+        game are made with the players in mind. Ideas, bug reports and questions are welcome at
+        <a href="mailto:contact@pinthecity.me">contact@pinthecity.me</a>.
+      </p>
+
+      <h2>Where the cities come from</h2>
+      <p>
+        The game knows about more than 64,000 cities and towns, every place in the world with at
+        least 5,000 inhabitants. The list, along with each place's coordinates and population,
+        comes from <a href="https://www.geonames.org/">GeoNames</a>, an open geographical database
+        maintained by volunteers. Places with the same name are grouped together, so when you are
+        asked about "Valencia" the game knows about every Valencia at once.
+      </p>
+      <p>
+        To decide how hard a city is, the game looks at how many language editions of Wikipedia have
+        an article about it, using data from <a href="https://www.wikidata.org/">Wikidata</a>. That
+        number is a good measure of how well known a place is around the world, much better than
+        population alone: plenty of large cities are almost unknown outside their own country,
+        while some small towns are world famous.
+      </p>
+      <p>
+        We also filter out places that would make bad questions, such as districts and
+        neighbourhoods of bigger cities, and towns whose names are just everyday English words, so
+        every round asks about a real, recognisable place. City names are spelled the way the map
+        itself shows them, so what you read at the top of the screen matches what you see when you
+        zoom in.
+      </p>
+
+      <h2>The map</h2>
+      <p>
+        The map is drawn from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
+        data, the free map of the world created by millions of contributors, and served by
+        <a href="https://openfreemap.org/">OpenFreeMap</a>. Country borders used inside the game
+        come from <a href="https://www.naturalearthdata.com/">Natural Earth</a>.
+      </p>
+
+      <h2>Fair play</h2>
+      <p>
+        The daily challenge is the same for everybody, so its results only mean something if
+        everyone plays fairly. Each player gets one try per day, and scores are checked on the server
+        rather than in your browser. The results chart only stores how many players landed in each
+        score range, never who they were.
+      </p>
+
+      <h2>Your privacy</h2>
+      <p>
+        PinTheCity collects as little as possible. You can play without an account, there is no
+        tracking or analytics, and if you create an account you can delete it and all of its data
+        at any time from the account menu. The <a href="/privacy">privacy page</a> lists exactly
+        what is stored and for how long.
+      </p>
+
+      <a class="page-cta" href="/">Play today's challenge</a>
+    </main>
+
+    <footer class="page-footer">
+      <a href="/">Play</a>
+      <a href="/how-to-play/">How to play</a>
+      <a href="/about/">About</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/licenses.txt">Licenses</a>
+      <span>contact@pinthecity.me</span>
+    </footer>
+  </body>
+</html>

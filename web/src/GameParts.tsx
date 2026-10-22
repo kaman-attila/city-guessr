@@ -1,5 +1,13 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowRightIcon, CheckIcon, CloseIcon, PinIcon, ShareIcon, StarIcon } from './icons'
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  PinIcon,
+  ShareIcon,
+  StarIcon,
+} from './icons'
 import { formatDistance } from './settings'
 import { type GuessResult, type Units } from './api'
 import { shareOrCopy } from './share'
@@ -141,9 +149,36 @@ export function CenterCard({ children }: { children: ReactNode }) {
 export function ResultPanel({ result, units, placeName, nextLabel, onNext }: ResultPanelProps) {
   const nearest = result.cities[result.closest]
   const count = result.cities.length
+  const [hidden, setHidden] = useState(false)
+
+  if (hidden) {
+    return (
+      <div className="result-mini">
+        <button
+          className="result-mini-show"
+          aria-label="Show the round result"
+          onClick={() => setHidden(false)}
+        >
+          <span className="display result-mini-points">+{result.score}</span>
+          <span className="mono">{formatDistance(result.distance_m, units)}</span>
+          <ChevronDownIcon size={18} strokeWidth={2.6} className="result-mini-chevron" />
+        </button>
+        <button className="fab fab-xs" aria-label={nextLabel} onClick={onNext}>
+          <ArrowRightIcon size={22} strokeWidth={2.8} />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="result-panel">
+      <button
+        className="result-hide"
+        aria-label="Hide the round result"
+        onClick={() => setHidden(true)}
+      >
+        <CloseIcon size={16} strokeWidth={2.6} />
+      </button>
       <div className="result-top">
         <div>
           <div className="display result-points">+{result.score}</div>

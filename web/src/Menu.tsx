@@ -102,6 +102,9 @@ export default function Menu({
       </main>
 
       <footer className="menu-footer">
+        <a href="/how-to-play/">How to play</a>
+        <a href="/about/">About</a>
+        <a href="/faq/">FAQ</a>
         <button className="footer-link" onClick={onPrivacy}>
           Privacy
         </button>

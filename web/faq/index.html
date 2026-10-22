@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-adsense-account" content="ca-pub-3120782577799020" />
+    <title>PinTheCity FAQ - Daily Challenge, Scores and Accounts</title>
+    <meta
+      name="description"
+      content="Answers to common questions about PinTheCity: when the daily challenge resets, how points work, what happens with cities that share a name, streaks, accounts and more."
+    />
+    <link rel="canonical" href="https://pinthecity.me/faq/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0a0f1f" />
+    <script>
+      try {
+        var t = JSON.parse(localStorage.getItem('pinthecity-settings') || '{}').theme
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
+    <script type="module" src="/src/pages.ts"></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <a class="page-logo" href="/">PinThe<span>City</span></a>
+      <nav class="page-nav" aria-label="Pages">
+        <a href="/how-to-play/">How to play</a>
+        <a href="/about/">About</a>
+        <a href="/faq/" aria-current="page">FAQ</a>
+        <a class="page-play" href="/">Play</a>
+      </nav>
+    </header>
+
+    <main class="page faq">
+      <h1>Frequently asked questions</h1>
+      <p class="lead">
+        Quick answers about the daily challenge, scoring, accounts and the data behind the game.
+        Can't find what you are looking for? Write to
+        <a href="mailto:contact@pinthecity.me">contact@pinthecity.me</a>.
+      </p>
+
+      <h2>Playing</h2>
+
+      <details open>
+        <summary>Is PinTheCity free?</summary>
+        <p>
+          Yes. Every mode is free to play, with no limits on Freeplay and no paid extras. You do
+          not even need an account.
+        </p>
+      </details>
+
+      <details>
+        <summary>When does the daily challenge reset?</summary>
+        <p>
+          A new daily challenge starts every day at midnight UTC. Depending on where you live that
+          can be in the evening, at night or in the morning; the menu shows a countdown to the next
+          one.
+        </p>
+      </details>
+
+      <details>
+        <summary>Does everyone get the same cities?</summary>
+        <p>
+          In the daily challenge, yes: everyone in the world gets the same five cities in the same
+          order, which is what makes comparing scores fair. In Freeplay every game is random.
+        </p>
+      </details>
+
+      <details>
+        <summary>Can I play the daily challenge more than once?</summary>
+        <p>
+          No, you get one try per day. If you want more practice, Freeplay has no limit. Past
+          challenges you have not played yet are waiting in the daily archive.
+        </p>
+      </details>
+
+      <details>
+        <summary>I missed a day. Can I still play it?</summary>
+        <p>
+          Yes. Open the daily archive from the menu to see every past challenge. Days you have not
+          played can be played there, and your score is added to that day's results. Days you have
+          finished show your score and the full breakdown again.
+        </p>
+      </details>
+
+      <details>
+        <summary>Why is the last round so hard?</summary>
+        <p>
+          On purpose. The five rounds go from Easy to Impossible. The first city is usually a
+          capital or a world-famous city, while the fifth is often a small town that even many
+          locals of that country would have to think about. A good score on round five is something
+          to be proud of.
+        </p>
+      </details>
+
+      <h2>Scoring</h2>
+
+      <details>
+        <summary>How are points calculated?</summary>
+        <p>
+          Each round is worth up to 1000 points. A pin within 10 km of the city gets all 1000.
+          Further away the score drops smoothly: about 720 points at 500 km, about 520 at 1,000 km
+          and about 265 at 2,000 km. The <a href="/how-to-play/">How to play</a> page has the full
+          table.
+        </p>
+      </details>
+
+      <details>
+        <summary>What if two cities have the same name?</summary>
+        <p>
+          The one closest to your pin counts. If you are asked about "Springfield", any Springfield
+          will do, so you are never punished for thinking of a different city with the same name.
+          After you guess, the map shows every place with that name.
+        </p>
+      </details>
+
+      <details>
+        <summary>What does "better than X% of players" mean?</summary>
+        <p>
+          After the daily challenge you see what share of the other players that day scored lower
+          than you. If you have the best score of the day it says 100%.
+        </p>
+      </details>
+
+      <details>
+        <summary>What do the coloured squares in the shared result mean?</summary>
+        <p>
+          Each square is one round: 🎯 is a perfect 1000, 🟩 is 750 or more, 🟨 is 400 or more,
+          🟧 is 100 or more and 🟥 is below 100. You can share your result without spoiling the
+          cities for your friends.
+        </p>
+      </details>
+
+      <h2>Accounts and streaks</h2>
+
+      <details>
+        <summary>Do I need an account?</summary>
+        <p>
+          No. You can play every mode as a guest. An account, created with your email or with
+          Google, lets you keep your best score and your streak across devices.
+        </p>
+      </details>
+
+      <details>
+        <summary>How does the streak work?</summary>
+        <p>
+          Your streak counts how many days in a row you have finished the daily challenge on the day
+          it came out. If you have not played yet today, your streak is still safe until midnight
+          UTC. Playing an old day from the archive does not count towards the streak.
+        </p>
+      </details>
+
+      <details>
+        <summary>What is the difference between best score and daily best?</summary>
+        <p>
+          Your best score is the highest total you have ever reached in a game. Your daily best is
+          the highest total you have reached today; it goes back to zero when a new day starts.
+        </p>
+      </details>
+
+      <details>
+        <summary>How do I delete my account?</summary>
+        <p>
+          Open the account menu in the top right corner and choose "Delete account". Your email,
+          scores and daily results are removed straight away.
+        </p>
+      </details>
+
+      <h2>The map and the data</h2>
+
+      <details>
+        <summary>Where do the cities come from?</summary>
+        <p>
+          From GeoNames, an open database of places around the world. The game uses every city and
+          town with at least 5,000 inhabitants, more than 64,000 in total. The
+          <a href="/about/">About</a> page explains how they are chosen for each round.
+        </p>
+      </details>
+
+      <details>
+        <summary>Why is a city spelled differently from what I expected?</summary>
+        <p>
+          Many places have several spellings, especially names written in another alphabet. The
+          game uses the spelling shown on the map itself, so you can find it by zooming in. If you
+          spot a name that looks wrong, please let us know.
+        </p>
+      </details>
+
+      <details>
+        <summary>A city seems to be in the wrong place. What can I do?</summary>
+        <p>
+          Send the city name and what looks wrong to
+          <a href="mailto:contact@pinthecity.me">contact@pinthecity.me</a>. The data comes from
+          open sources and occasionally a place is placed oddly; reports help fix it.
+        </p>
+      </details>
+
+      <details>
+        <summary>Does it work on my phone?</summary>
+        <p>
+          Yes. PinTheCity runs in any modern browser on phones, tablets and computers. There is
+          nothing to install.
+        </p>
+      </details>
+
+      <a class="page-cta" href="/">Play now</a>
+    </main>
+
+    <footer class="page-footer">
+      <a href="/">Play</a>
+      <a href="/how-to-play/">How to play</a>
+      <a href="/about/">About</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/licenses.txt">Licenses</a>
+      <span>contact@pinthecity.me</span>
+    </footer>
+  </body>
+</html>
