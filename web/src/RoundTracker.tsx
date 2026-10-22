@@ -1,13 +1,14 @@
 import { StarIcon } from './icons'
+import { DIFFICULTIES } from './gameOptions'
 import './RoundTracker.css'
 
-const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Impossible']
 const MAX_SCORE = 1000
 
 type Props = {
   scores: (number | null)[]
   current: number | null
   total: number
+  level?: number | null
 }
 
 function RoundPin({ round }: { round: number }) {
@@ -21,7 +22,7 @@ function RoundPin({ round }: { round: number }) {
   )
 }
 
-export default function RoundTracker({ scores, current, total }: Props) {
+export default function RoundTracker({ scores, current, total, level = null }: Props) {
   const answered = scores.length
 
   return (
@@ -30,8 +31,10 @@ export default function RoundTracker({ scores, current, total }: Props) {
         Round
       </span>
 
-      {DIFFICULTIES.map((difficulty, i) => {
+      {DIFFICULTIES.map((_, i) => {
         const round = i + 1
+        const shownLevel = level ?? round
+        const difficulty = DIFFICULTIES[shownLevel - 1]
         const done = i < answered
         const score = done ? scores[i] : null
         const perfect = score === MAX_SCORE
@@ -49,13 +52,13 @@ export default function RoundTracker({ scores, current, total }: Props) {
           <div
             key={round}
             role="listitem"
-            className={`tracker-round ${status} level-${round}`}
+            className={`tracker-round ${status} level-${shownLevel}`}
             aria-label={`Round ${round}, ${difficulty}: ${spoken}`}
           >
             <span className="tracker-difficulty">{difficulty}</span>
             <span className="tracker-pips" aria-hidden="true">
               {DIFFICULTIES.map((_, p) => (
-                <span key={p} className={p <= i ? 'on' : undefined} />
+                <span key={p} className={p < shownLevel ? 'on' : undefined} />
               ))}
             </span>
             <RoundPin round={round} />

@@ -82,15 +82,16 @@
   inset: 0;
   z-index: 3;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
+  overflow-y: auto;
   padding: 16px;
   background: color-mix(in srgb, var(--bg) 55%, transparent);
   backdrop-filter: blur(2px);
 }
 
 .center-card {
-  width: 380px;
-  max-width: 100%;
+  width: min(380px, 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -130,8 +131,9 @@
 }
 
 .total {
-  font-size: 56px;
+  font-size: clamp(40px, 13vw, 56px);
   line-height: 1;
+  white-space: nowrap;
 }
 
 .total small {
@@ -360,4 +362,58 @@
   .btn-pill:hover {
     transform: scale(1.04);
   }
+}
+
+.option-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.chip:hover {
+  background: var(--surface2);
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.chip[class*='level-'][aria-pressed='true'] {
+  border-color: var(--level);
+  background: var(--level);
+  color: var(--ink);
+}
+
+.center-card .option-note {
+  font-size: 13px;
+}
+
+.option-summary {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--surface2);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
 }

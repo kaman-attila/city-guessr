@@ -6,6 +6,7 @@ type Props = {
   onHome?: () => void
   center?: ReactNode
   account: ReactNode
+  tools?: ReactNode
 }
 
 export function Wordmark({ className = '' }: { className?: string }) {
@@ -16,7 +17,7 @@ export function Wordmark({ className = '' }: { className?: string }) {
   )
 }
 
-export default function TopBar({ onHome, center, account }: Props) {
+export default function TopBar({ onHome, center, account, tools }: Props) {
   return (
     <header className="topbar">
       <div className="topbar-side">
@@ -25,7 +26,8 @@ export default function TopBar({ onHome, center, account }: Props) {
             <button className="icon-btn" aria-label="Back to menu" onClick={onHome}>
               <HomeIcon />
             </button>
-            <Wordmark className="topbar-wordmark" />
+            {tools}
+            {!tools && <Wordmark className="topbar-wordmark" />}
           </>
         )}
       </div>

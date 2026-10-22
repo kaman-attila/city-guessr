@@ -21,6 +21,7 @@ type ResultPanelProps = {
   placeName: string
   nextLabel: string
   onNext: () => void
+  regionName?: string | null
 }
 
 export function CityHeading({ name }: { name: string | null }) {
@@ -93,12 +94,18 @@ export function ShareButton({ getText }: { getText: () => string }) {
   )
 }
 
-export function NewBestBadge({ previous }: { previous: number }) {
+export function NewBestBadge({
+  previous,
+  title = 'New personal best!',
+}: {
+  previous: number
+  title?: string
+}) {
   return (
     <div className="new-best" role="status">
       <StarIcon size={18} />
       <span>
-        <strong>New personal best!</strong>
+        <strong>{title}</strong>
         <small>
           {previous === 0 ? 'Your first saved best score' : `Previous best: ${previous}`}
         </small>
@@ -146,7 +153,14 @@ export function CenterCard({ children }: { children: ReactNode }) {
   )
 }
 
-export function ResultPanel({ result, units, placeName, nextLabel, onNext }: ResultPanelProps) {
+export function ResultPanel({
+  result,
+  units,
+  placeName,
+  nextLabel,
+  onNext,
+  regionName = null,
+}: ResultPanelProps) {
   const nearest = result.cities[result.closest]
   const count = result.cities.length
   const [hidden, setHidden] = useState(false)
@@ -204,7 +218,8 @@ export function ResultPanel({ result, units, placeName, nextLabel, onNext }: Res
         <div className="result-note">
           <span className="legend-dot other" aria-hidden="true" />
           <span>
-            {count} places are called {placeName}. The nearest one counts.
+            {count} places are called {placeName}.{' '}
+            {regionName ? `The nearest one in ${regionName} counts.` : 'The nearest one counts.'}
           </span>
         </div>
       )}

@@ -12,6 +12,7 @@ import {
   type Units,
 } from './api'
 import { type Settings } from './settings'
+import { regionLabel } from './gameOptions'
 import {
   ChevronDownIcon,
   FlameIcon,
@@ -228,6 +229,19 @@ export default function AccountMenu({
                   </span>
                 </div>
               </div>
+              {profile.region_bests.length > 0 && (
+                <div className="region-bests">
+                  <span className="label">Continent bests</span>
+                  <ul>
+                    {profile.region_bests.map((r) => (
+                      <li key={r.region}>
+                        <span>{regionLabel(r.region)}</span>
+                        <span className="mono">{r.best}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {!profile.email_verified && (
                 <div className="verify-note" role="status">
                   <span>

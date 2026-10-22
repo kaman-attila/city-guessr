@@ -23,9 +23,15 @@ export function dailyShareText(
   return `PinTheCity Daily #${number} · ${day}\n${squares} ${total} / 5000\n${siteUrl}`
 }
 
-export function freeplayShareText(total: number, scores: number[], siteUrl: string): string {
+export function freeplayShareText(
+  total: number,
+  scores: number[],
+  siteUrl: string,
+  variant: string | null,
+): string {
   const squares = scores.map(roundEmoji).join('')
-  return `PinTheCity Freeplay\n${squares} ${total} / 5000\n${siteUrl}`
+  const title = variant ? `PinTheCity Freeplay · ${variant}` : 'PinTheCity Freeplay'
+  return `${title}\n${squares} ${total} / 5000\n${siteUrl}`
 }
 
 export async function shareOrCopy(text: string): Promise<'shared' | 'copied' | 'cancelled'> {

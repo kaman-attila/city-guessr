@@ -8,6 +8,9 @@ pub const TOTAL_NAMES: u32 = 59383;
 pub const BUCKET_SIZE: u32 = 250;
 pub const BUCKETS: u32 = 20;
 pub const ARCHIVE_START: &str = "2026-10-21";
+pub const WORLD: &str = "world";
+pub const REGIONS: [&str; 7] = [WORLD, "EU", "AS", "AF", "NA", "SA", "OC"];
+pub const LEVELS: std::ops::RangeInclusive<u32> = 1..=5;
 pub const FAME_START: &str = "2026-10-23";
 pub const COUNTRY_BONUS_START: &str = "2026-10-23";
 const COUNTRY_BONUS_SHARE: f64 = 0.3;
@@ -115,12 +118,13 @@ pub fn format_name_ids(ids: &[u32; 5]) -> String {
 }
 
 pub fn current_streak(on_time_dates_newest_first: &[&str], today: &str) -> u32 {
-    let Some(today) = day_from_date(today) else {
+    let (Some(today), Some(first)) = (day_from_date(today), day_from_date(ARCHIVE_START)) else {
         return 0;
     };
     let days: Vec<i64> = on_time_dates_newest_first
         .iter()
         .filter_map(|d| day_from_date(d))
+        .filter(|&day| day >= first)
         .collect();
     let Some(&newest) = days.first() else {
         return 0;
@@ -284,23 +288,27 @@ mod tests {
 
     #[test]
     fn streak_counts_days_in_a_row() {
-        let today = "2026-10-22";
-        assert_eq!(current_streak(&[], today), 0);
-        assert_eq!(current_streak(&["2026-10-22"], today), 1);
+        let start = day_from_date(ARCHIVE_START).unwrap();
+        let day = |n: i64| date_from_day(start + n);
+        let (d0, d1, d2, d3, d10) = (day(0), day(1), day(2), day(3), day(10));
+        assert_eq!(current_streak(&[], &d3), 0);
+        assert_eq!(current_streak(&[&d3], &d3), 1);
+        assert_eq!(current_streak(&[&d3, &d2, &d1], &d3), 3);
+        assert_eq!(current_streak(&[&d2, &d1], &d3), 2);
+        assert_eq!(current_streak(&[&d1, &d0], &d3), 0);
+        assert_eq!(current_streak(&[&d3, &d1, &d0], &d3), 1);
+        assert_eq!(current_streak(&[&d10, &day(9), &day(8)], &d10), 3);
+    }
+
+    #[test]
+    fn streak_ignores_days_before_the_first_daily() {
+        let start = day_from_date(ARCHIVE_START).unwrap();
+        let day = |n: i64| date_from_day(start + n);
         assert_eq!(
-            current_streak(&["2026-10-22", "2026-10-21", "2026-10-20"], today),
-            3
-        );
-        assert_eq!(current_streak(&["2026-10-21", "2026-10-20"], today), 2);
-        assert_eq!(current_streak(&["2026-10-20", "2026-10-19"], today), 0);
-        assert_eq!(
-            current_streak(&["2026-10-22", "2026-10-20", "2026-10-19"], today),
-            1
-        );
-        assert_eq!(
-            current_streak(&["2026-11-01", "2026-10-31"], "2026-11-01"),
+            current_streak(&[&day(1), &day(0), &day(-1), &day(-2)], &day(1)),
             2
         );
+        assert_eq!(current_streak(&[&day(-1), &day(-2)], &day(0)), 0);
     }
 
     #[test]

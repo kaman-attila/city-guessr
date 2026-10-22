@@ -11,6 +11,9 @@ const ROUND_RANKS: [(usize, usize); 5] = [
 ];
 const COUNTRY_EXPONENTS: [f64; 5] = [1.0, 1.0, 0.5, 0.5, 0.5];
 const UNFILTERED_RANKS: usize = 1000;
+const WORLD: &str = "world";
+const POOLS: [&str; 7] = [WORLD, "EU", "AS", "AF", "NA", "SA", "OC"];
+const URALS_LON: f64 = 60.0;
 const ENGLISH_COUNTRIES: [&str; 6] = ["US", "GB", "CA", "AU", "NZ", "IE"];
 const PLACE_WORD_MIN_POPULATION: u64 = 20_000;
 const MILITARY_WORDS: [&str; 2] = ["air force base", "cantonment"];
@@ -87,6 +90,31 @@ struct Fame {
     country: String,
     skip: Option<&'static str>,
     shown_city: String,
+    continent: &'static str,
+}
+
+fn read_continents() -> std::io::Result<HashMap<String, &'static str>> {
+    let mut continents = HashMap::new();
+    for line in BufReader::new(File::open("data/countryInfo.txt")?).lines() {
+        let line = line?;
+        if line.starts_with('#') {
+            continue;
+        }
+        let columns: Vec<&str> = line.split('\t').collect();
+        if let (Some(code), Some(continent)) = (columns.first(), columns.get(8))
+            && let Some(known) = POOLS.iter().find(|p| **p == *continent)
+        {
+            continents.insert(code.to_string(), *known);
+        }
+    }
+    Ok(continents)
+}
+
+fn continent_of(city: &City, continents: &HashMap<String, &'static str>) -> &'static str {
+    if city.country == "RU" && city.lon > URALS_LON {
+        return "AS";
+    }
+    continents.get(&city.country).copied().unwrap_or("")
 }
 
 fn read_map_names() -> std::io::Result<HashMap<String, String>> {
@@ -213,30 +241,43 @@ fn round_name_values(mut fame: Vec<Fame>) -> (Vec<String>, Vec<String>) {
     for (round, (&(first, last), &exponent)) in
         ROUND_RANKS.iter().zip(&COUNTRY_EXPONENTS).enumerate()
     {
-        let pool = &fame[first - 1..last.min(fame.len())];
-        let mut per_country: HashMap<&str, usize> = HashMap::new();
-        for name in pool {
-            *per_country.entry(name.country.as_str()).or_default() += 1;
-        }
-        let total: f64 = per_country
-            .values()
-            .map(|&n| (n as f64).powf(exponent))
-            .sum();
+        let band = &fame[first - 1..last.min(fame.len())];
+        shown_cities.extend(band.iter().map(|name| name.shown_city.clone()));
+        for pool in POOLS {
+            let names: Vec<&Fame> = band
+                .iter()
+                .filter(|name| pool == WORLD || name.continent == pool)
+                .collect();
+            if names.is_empty() {
+                panic!("pool {pool} has no names for round {}", round + 1);
+            }
+            let mut per_country: HashMap<&str, usize> = HashMap::new();
+            for name in &names {
+                *per_country.entry(name.country.as_str()).or_default() += 1;
+            }
+            let total: f64 = per_country
+                .values()
+                .map(|&n| (n as f64).powf(exponent))
+                .sum();
 
-        let mut cum = 0.0;
-        for (i, name) in pool.iter().enumerate() {
-            let n = per_country[name.country.as_str()] as f64;
-            cum += n.powf(exponent) / total / n;
-            let point = if i + 1 == pool.len() { 1.0 } else { cum };
-            values.push(format!("({}, {point}, {})", round + 1, name.name_id));
-            shown_cities.push(name.shown_city.clone());
+            let mut cum = 0.0;
+            for (i, name) in names.iter().enumerate() {
+                let n = per_country[name.country.as_str()] as f64;
+                cum += n.powf(exponent) / total / n;
+                let point = if i + 1 == names.len() { 1.0 } else { cum };
+                values.push(format!(
+                    "('{pool}', {}, {point}, {})",
+                    round + 1,
+                    name.name_id
+                ));
+            }
+            println!(
+                "{pool} round {}: {} names from {} countries",
+                round + 1,
+                names.len(),
+                per_country.len()
+            );
         }
-        println!(
-            "round {}: {} names from {} countries",
-            round + 1,
-            pool.len(),
-            per_country.len()
-        );
     }
     (values, shown_cities)
 }
@@ -323,6 +364,7 @@ fn main() -> std::io::Result<()> {
     }
 
     let sitelinks = read_sitelinks()?;
+    let continents = read_continents()?;
     let mut name_rows: Vec<NameRow> = Vec::new();
     let mut city_rows: Vec<(u32, City)> = Vec::new();
     let mut fame: Vec<Fame> = Vec::new();
@@ -354,6 +396,7 @@ fn main() -> std::io::Result<()> {
                 "{}\t{}\t{}\t{}",
                 list[0].geoname_id, list[0].lat, list[0].lon, list[0].name
             ),
+            continent: continent_of(famous, &continents),
         });
         if renamed.contains(&list[0].geoname_id) {
             renames.push(format!(
@@ -427,7 +470,7 @@ fn main() -> std::io::Result<()> {
     write_sql_after(
         "round_names",
         Some("DELETE FROM round_names;"),
-        "INSERT INTO round_names (round, cum, name_id) VALUES",
+        "INSERT INTO round_names (pool, round, cum, name_id) VALUES",
         &round_values,
     )?;
     std::fs::write("out/round_cities.tsv", shown_cities.join("\n") + "\n")?;

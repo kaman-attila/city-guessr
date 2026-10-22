@@ -21,6 +21,15 @@ import {
   ShareButton,
 } from './GameParts'
 import { freeplayShareText } from './share'
+import GameOptionsMenu from './GameOptionsMenu'
+import {
+  bestKind,
+  describeOptions,
+  DEFAULT_OPTIONS,
+  DIFFICULTIES,
+  regionLabel,
+  type GameOptions,
+} from './gameOptions'
 
 type GameState =
   | { phase: 'start' }
@@ -45,6 +54,12 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
   const [scores, setScores] = useState<number[]>([])
   const [previousBest, setPreviousBest] = useState<number | null>(null)
   const [pendingGuess, setPendingGuess] = useState<LatLon | null>(null)
+  const [options, setOptions] = useState<GameOptions>(DEFAULT_OPTIONS)
+  const [playing, setPlaying] = useState<GameOptions>(options)
+
+  function changeOptions(change: Partial<GameOptions>) {
+    setOptions((current) => ({ ...current, ...change }))
+  }
 
   async function startGame() {
     setState({ phase: 'loading' })
@@ -52,8 +67,9 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
     setTotal(0)
     setScores([])
     setPreviousBest(null)
+    setPlaying(options)
     try {
-      const game = await startFreeplay()
+      const game = await startFreeplay(options)
       setGameId(game.game_id)
       setState({ phase: 'guessing', round: game.next })
     } catch (err) {
@@ -93,6 +109,11 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
     setPendingGuess({ lat, lon })
   }
 
+  const variant =
+    playing.region === 'world' && playing.level === null ? null : describeOptions(playing)
+  const custom = options.region !== 'world' || options.level !== null
+  const locked = state.phase !== 'start' && state.phase !== 'finished' && state.phase !== 'error'
+
   function renderOverlay() {
     switch (state.phase) {
       case 'start':
@@ -102,7 +123,12 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
               <InfinityIcon size={30} strokeWidth={2.2} />
             </span>
             <h2 className="display">Freeplay</h2>
-            <p>5 random cities, from easy to hard. Drop your pin as close as you can.</p>
+            <p>
+              {options.level === null
+                ? '5 random cities, from easy to hard. Drop your pin as close as you can.'
+                : `5 random ${DIFFICULTIES[options.level - 1].toLowerCase()} cities. Drop your pin as close as you can.`}
+            </p>
+            {custom && <span className="option-summary">{describeOptions(options)}</span>}
             <button className="fab" aria-label="Start" onClick={startGame}>
               <PlayIcon size={34} />
             </button>
@@ -117,8 +143,20 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
               {total}
               <small> / 5000</small>
             </div>
-            {previousBest !== null && <NewBestBadge previous={previousBest} />}
-            <ShareButton getText={() => freeplayShareText(total, scores, window.location.origin)} />
+            {variant && <span className="option-summary">{variant}</span>}
+            {previousBest !== null && (
+              <NewBestBadge
+                previous={previousBest}
+                title={
+                  bestKind(playing) === 'region'
+                    ? `New ${regionLabel(playing.region)} best!`
+                    : 'New personal best!'
+                }
+              />
+            )}
+            <ShareButton
+              getText={() => freeplayShareText(total, scores, window.location.origin, variant)}
+            />
             <button className="fab" aria-label="Play again" onClick={startGame}>
               <ReplayIcon size={32} strokeWidth={2.6} />
             </button>
@@ -158,10 +196,18 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
               scores={scores}
               current={state.phase === 'guessing' ? state.round.round : null}
               total={total}
+              level={playing.level}
             />
           ) : null
         }
         account={account}
+        tools={
+          <GameOptionsMenu
+            options={locked ? playing : options}
+            onChange={changeOptions}
+            locked={locked}
+          />
+        }
       />
       <main className="stage">
         <CityHeading name={cityName} />
@@ -188,6 +234,7 @@ export default function Freeplay({ units, dark, account, onExit, onFinished }: P
               placeName={state.round.name}
               nextLabel={state.next ? 'Next round' : 'See total'}
               onNext={next}
+              regionName={playing.region === 'world' ? null : regionLabel(playing.region)}
             />
           )}
           {overlay && <CenterCard>{overlay}</CenterCard>}

@@ -17,6 +17,7 @@ use worker::*;
 
 mod auth;
 mod borders;
+mod continents;
 mod email;
 mod game;
 mod guest;
@@ -206,6 +207,21 @@ struct RoundGuessResponse {
 struct FreeplayRow {
     round: u32,
     name_id: Option<u32>,
+    pool: String,
+    level: Option<u32>,
+    seen: String,
+}
+
+#[derive(Deserialize, Default)]
+struct FreeplayStartRequest {
+    region: Option<String>,
+    level: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct RegionBest {
+    region: String,
+    best: u32,
 }
 
 #[derive(Serialize)]
@@ -269,6 +285,7 @@ struct Profile {
     providers: Vec<String>,
     daily_best: u32,
     streak: u32,
+    region_bests: Vec<RegionBest>,
     best_score: u32,
     theme: String,
     units: String,
@@ -434,13 +451,39 @@ async fn find_name(db: &D1Database, id: u32) -> worker::Result<Option<NameRow>> 
         .await
 }
 
-async fn pick_round_name(db: &D1Database, round: u32, draw: f64) -> worker::Result<Option<u32>> {
+async fn pick_round_name(
+    db: &D1Database,
+    pool: &str,
+    round: u32,
+    draw: f64,
+) -> worker::Result<Option<u32>> {
     let row: Option<IdRow> = db
         .prepare(
-            "SELECT name_id AS id FROM round_names WHERE round = ?1 AND cum > ?2 \
+            "SELECT name_id AS id FROM round_names WHERE pool = ?1 AND round = ?2 AND cum > ?3 \
              ORDER BY cum LIMIT 1",
         )
-        .bind(&[round.into(), draw.into()])?
+        .bind(&[pool.into(), round.into(), draw.into()])?
+        .first(None)
+        .await?;
+    Ok(row.map(|r| r.id))
+}
+
+async fn pick_unseen_name(
+    db: &D1Database,
+    pool: &str,
+    round: u32,
+    draw: f64,
+    seen: &[u32],
+) -> worker::Result<Option<u32>> {
+    let placeholders: String = (0..seen.len()).map(|i| format!(", ?{}", i + 4)).collect();
+    let mut values: Vec<JsValue> = vec![pool.into(), round.into(), draw.into()];
+    values.extend(seen.iter().map(|&id| JsValue::from(id)));
+    let row: Option<IdRow> = db
+        .prepare(format!(
+            "SELECT name_id AS id FROM round_names WHERE pool = ?1 AND round = ?2 AND cum > ?3 \
+             AND name_id NOT IN (0{placeholders}) ORDER BY cum LIMIT 1"
+        ))
+        .bind(&values)?
         .first(None)
         .await?;
     Ok(row.map(|r| r.id))
@@ -448,9 +491,19 @@ async fn pick_round_name(db: &D1Database, round: u32, draw: f64) -> worker::Resu
 
 async fn random_name_for_round(
     db: &D1Database,
+    pool: &str,
     round: u32,
+    seen: &[u32],
 ) -> std::result::Result<NameRow, AppError> {
-    let id = match pick_round_name(db, round, js_sys::Math::random()).await? {
+    let draw = js_sys::Math::random();
+    let mut id = pick_unseen_name(db, pool, round, draw, seen).await?;
+    if id.is_none() {
+        id = pick_unseen_name(db, pool, round, -1.0, seen).await?;
+    }
+    if id.is_none() {
+        id = pick_round_name(db, pool, round, draw).await?;
+    }
+    let id = match id {
         Some(id) => id,
         None => {
             let (min, max) = game::id_range_for_round(round)
@@ -484,9 +537,11 @@ async fn daily_ids(
         let mut ids = [0u32; 5];
         for (i, draw) in game::daily_draws(seed).into_iter().enumerate() {
             let round = i as u32 + 1;
-            ids[i] = pick_round_name(db, round, draw).await?.ok_or_else(|| {
-                AppError::Internal(format!("round_names has nothing for round {round}"))
-            })?;
+            ids[i] = pick_round_name(db, game::WORLD, round, draw)
+                .await?
+                .ok_or_else(|| {
+                    AppError::Internal(format!("round_names has nothing for round {round}"))
+                })?;
         }
         ids
     };
@@ -499,7 +554,19 @@ async fn daily_ids(
 }
 
 #[worker::send]
-async fn freeplay_start(Extension(env): Extension<Env>) -> ApiResult<FreeplayStart> {
+async fn freeplay_start(
+    Extension(env): Extension<Env>,
+    body: Option<Json<FreeplayStartRequest>>,
+) -> ApiResult<FreeplayStart> {
+    let options = body.map(|Json(req)| req).unwrap_or_default();
+    let pool = options.region.unwrap_or_else(|| game::WORLD.to_string());
+    if !game::REGIONS.contains(&pool.as_str()) {
+        return Err(AppError::BadRequest("unknown region"));
+    }
+    if options.level.is_some_and(|l| !game::LEVELS.contains(&l)) {
+        return Err(AppError::BadRequest("level must be 1 to 5"));
+    }
+
     let db = env.d1("DB")?;
     let now = util::now_secs();
 
@@ -508,12 +575,23 @@ async fn freeplay_start(Extension(env): Extension<Env>) -> ApiResult<FreeplaySta
         .run()
         .await?;
 
-    let name = random_name_for_round(&db, 1).await?;
+    let name = random_name_for_round(&db, &pool, options.level.unwrap_or(1), &[]).await?;
     let game_id = util::random_uuid()?;
-    db.prepare("INSERT INTO freeplay_games (id, name_id, created_at) VALUES (?1, ?2, ?3)")
-        .bind(&[game_id.as_str().into(), name.id.into(), (now as f64).into()])?
-        .run()
-        .await?;
+    let level = options.level.map_or(JsValue::NULL, JsValue::from);
+    db.prepare(
+        "INSERT INTO freeplay_games (id, name_id, created_at, pool, level, seen) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+    )
+    .bind(&[
+        game_id.as_str().into(),
+        name.id.into(),
+        (now as f64).into(),
+        pool.as_str().into(),
+        level,
+        name.id.to_string().into(),
+    ])?
+    .run()
+    .await?;
 
     Ok(Json(FreeplayStart {
         game_id,
@@ -534,7 +612,7 @@ async fn freeplay_guess(
     let db = env.d1("DB")?;
 
     let row: FreeplayRow = db
-        .prepare("SELECT round, name_id FROM freeplay_games WHERE id = ?1")
+        .prepare("SELECT round, name_id, pool, level, seen FROM freeplay_games WHERE id = ?1")
         .bind(&[req.game_id.as_str().into()])?
         .first(None)
         .await?
@@ -543,18 +621,24 @@ async fn freeplay_guess(
         return Err(AppError::BadRequest("already finished"));
     };
 
-    let result = score_guess(&db, name_id, req.lat, req.lon, true).await?;
+    let result = score_guess(&db, name_id, req.lat, req.lon, true, &row.pool).await?;
 
+    let seen: Vec<u32> = row.seen.split(',').filter_map(|s| s.parse().ok()).collect();
     let next_name = if row.round + 1 < 5 {
-        Some(random_name_for_round(&db, row.round + 2).await?)
+        let band = row.level.unwrap_or(row.round + 2);
+        Some(random_name_for_round(&db, &row.pool, band, &seen).await?)
     } else {
         None
     };
     let next_id = next_name.as_ref().map_or(JsValue::NULL, |n| n.id.into());
+    let seen_after = match &next_name {
+        Some(n) => format!("{},{}", row.seen, n.id),
+        None => row.seen.clone(),
+    };
 
     let updated: PlayRow = db
         .prepare(
-            "UPDATE freeplay_games SET round = round + 1, score = score + ?1, name_id = ?2 \
+            "UPDATE freeplay_games SET round = round + 1, score = score + ?1, name_id = ?2, seen = ?5 \
              WHERE id = ?3 AND round = ?4 \
              RETURNING round, score",
         )
@@ -563,15 +647,20 @@ async fn freeplay_guess(
             next_id,
             req.game_id.as_str().into(),
             row.round.into(),
+            seen_after.as_str().into(),
         ])?
         .first(None)
         .await?
         .ok_or(AppError::Conflict("round already answered"))?;
 
     let mut previous_best = None;
-    if next_name.is_none() {
+    if next_name.is_none() && row.level.is_none() {
         if let Some(user_id) = auth::current_user_id(&db, &headers).await? {
-            previous_best = update_best(&db, user_id, updated.score).await?;
+            previous_best = if row.pool == game::WORLD {
+                update_best(&db, user_id, updated.score).await?
+            } else {
+                update_region_best(&db, user_id, &row.pool, updated.score).await?
+            };
         }
     }
 
@@ -741,6 +830,7 @@ async fn daily_guess(
         req.lat,
         req.lon,
         country_bonus,
+        game::WORLD,
     )
     .await?;
 
@@ -803,14 +893,28 @@ async fn score_guess(
     lat: f64,
     lon: f64,
     country_bonus: bool,
+    region: &str,
 ) -> std::result::Result<GuessResponse, AppError> {
     let name = find_name(db, name_id)
         .await?
         .ok_or(AppError::NotFound("name not found"))?;
     let cities = find_cities(db, name.first_city, name.city_count).await?;
-    let points: Vec<(f64, f64)> = cities.iter().map(|c| (c.lat, c.lon)).collect();
-    let (closest, distance_m) = game::closest(lat, lon, &points)
+    let mut counted: Vec<usize> = (0..cities.len())
+        .filter(|&i| {
+            region == game::WORLD
+                || continents::continent_of(&cities[i].country, cities[i].lon) == Some(region)
+        })
+        .collect();
+    if counted.is_empty() {
+        counted = (0..cities.len()).collect();
+    }
+    let points: Vec<(f64, f64)> = counted
+        .iter()
+        .map(|&i| (cities[i].lat, cities[i].lon))
+        .collect();
+    let (nearest, distance_m) = game::closest(lat, lon, &points)
         .ok_or_else(|| AppError::Internal(format!("name {} has no cities", name.id)))?;
+    let closest = counted[nearest];
     let mut score = game::score(distance_m);
     if country_bonus && borders::country_at(lat, lon) == Some(cities[closest].country.as_str()) {
         score = game::with_country_bonus(score);
@@ -1435,6 +1539,8 @@ async fn delete_account(
             .bind(&[user_id.into()])?,
         db.prepare("DELETE FROM user_identities WHERE user_id = ?1")
             .bind(&[user_id.into()])?,
+        db.prepare("DELETE FROM user_region_bests WHERE user_id = ?1")
+            .bind(&[user_id.into()])?,
         db.prepare("DELETE FROM users WHERE id = ?1")
             .bind(&[user_id.into()])?,
     ])
@@ -1455,6 +1561,32 @@ async fn current_player(db: &D1Database, headers: &HeaderMap) -> worker::Result<
         return Ok(Some(Player::User(user_id)));
     }
     Ok(guest::read_guest_id(headers).map(Player::Guest))
+}
+
+async fn update_region_best(
+    db: &D1Database,
+    user_id: u32,
+    region: &str,
+    score: u32,
+) -> worker::Result<Option<u32>> {
+    let before: Option<RegionBest> = db
+        .prepare("SELECT region, best FROM user_region_bests WHERE user_id = ?1 AND region = ?2")
+        .bind(&[user_id.into(), region.into()])?
+        .first(None)
+        .await?;
+    if before.as_ref().is_some_and(|b| score <= b.best) {
+        return Ok(None);
+    }
+    let raised: Option<RegionBest> = db
+        .prepare(
+            "INSERT INTO user_region_bests (user_id, region, best) VALUES (?1, ?2, ?3) \
+             ON CONFLICT (user_id, region) DO UPDATE SET best = excluded.best \
+             WHERE excluded.best > user_region_bests.best RETURNING region, best",
+        )
+        .bind(&[user_id.into(), region.into(), score.into()])?
+        .first(None)
+        .await?;
+    Ok(raised.map(|_| before.map_or(0, |b| b.best)))
 }
 
 async fn update_best(db: &D1Database, user_id: u32, score: u32) -> worker::Result<Option<u32>> {
@@ -1522,6 +1654,12 @@ async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Prof
         .all()
         .await?
         .results()?;
+    let region_bests: Vec<RegionBest> = db
+        .prepare("SELECT region, best FROM user_region_bests WHERE user_id = ?1 ORDER BY region")
+        .bind(&[user_id.into()])?
+        .all()
+        .await?
+        .results()?;
     let on_time: Vec<&str> = plays
         .iter()
         .filter(|p| p.finished_on.as_deref() == Some(p.date.as_str()))
@@ -1531,6 +1669,7 @@ async fn load_profile(db: &D1Database, user_id: u32) -> std::result::Result<Prof
     Ok(Profile {
         email: row.email,
         daily_best: row.daily_best,
+        region_bests,
         streak: game::current_streak(&on_time, &today),
         email_verified: row.verified != 0,
         has_password: row.has_password != 0,

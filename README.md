@@ -43,7 +43,7 @@ import/   Rust tool that turns the GeoNames dump into SQL files for D1
 
 ### 1. Build the city data
 
-1. Download [`cities5000.zip`](https://download.geonames.org/export/dump/cities5000.zip) from GeoNames and unzip `cities5000.txt` into `import/data/`.
+1. Download [`cities5000.zip`](https://download.geonames.org/export/dump/cities5000.zip) from GeoNames and unzip `cities5000.txt` into `import/data/`. Also download [`countryInfo.txt`](https://download.geonames.org/export/dump/countryInfo.txt) into the same folder; it tells the import which continent each country is on, for the continent games.
 2. Fetch how famous each city is (its number of Wikipedia language versions, from Wikidata). It takes a few minutes and writes `import/data/sitelinks.tsv`:
 
    ```bash

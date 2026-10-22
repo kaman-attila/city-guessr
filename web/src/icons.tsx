@@ -198,3 +198,14 @@ export const FlameIcon = (p: IconProps) => (
     <path d="M12.6 2.2c.5 3.1-1.1 4.9-2.6 6.6C8.5 10.5 6.6 12.4 6.6 15a5.4 5.4 0 0 0 10.8 0c0-2.4-1.2-4.2-2.5-5.6.1 1.7-.6 2.9-1.8 3.4.4-3.8-.3-7.6-.5-10.6z" />
   </Icon>
 )
+
+export const SlidersIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 7h10" />
+    <path d="M18 7h2" />
+    <circle cx="16" cy="7" r="2" />
+    <path d="M4 17h4" />
+    <path d="M12 17h8" />
+    <circle cx="10" cy="17" r="2" />
+  </Icon>
+)

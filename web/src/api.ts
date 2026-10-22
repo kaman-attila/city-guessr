@@ -1,3 +1,5 @@
+import type { GameOptions } from './gameOptions'
+
 export type LatLon = { lat: number; lon: number }
 
 export type City = {
@@ -64,6 +66,7 @@ export type Profile = {
   has_password: boolean
   is_admin: boolean
   daily_best: number
+  region_bests: { region: string; best: number }[]
   streak: number
   providers: string[]
   best_score: number
@@ -80,8 +83,15 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function startFreeplay(): Promise<FreeplayStart> {
-  return request<FreeplayStart>('/api/freeplay', { method: 'POST' })
+export function startFreeplay(options: GameOptions): Promise<FreeplayStart> {
+  return request<FreeplayStart>('/api/freeplay', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      region: options.region,
+      level: options.level ?? undefined,
+    }),
+  })
 }
 
 export function submitFreeplayGuess(

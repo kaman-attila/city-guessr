@@ -403,3 +403,33 @@
 .stat-streak.on svg {
   color: var(--flame);
 }
+
+.region-bests {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: -6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface2);
+}
+
+.region-bests ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+}
+
+.region-bests li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.region-bests li .mono {
+  font-weight: 700;
+}
