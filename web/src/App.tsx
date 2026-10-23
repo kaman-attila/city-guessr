@@ -151,6 +151,7 @@ export default function App() {
   if (screen === 'archive')
     return (
       <Archive
+        key={profile?.email ?? 'guest'}
         account={accountButton}
         onHome={back}
         onOpen={(day) => {

@@ -244,10 +244,7 @@ fn pool_values(pool: &str, round: usize, names: &[&Fame], values: &mut Vec<Strin
     }
     let mut counts: Vec<(&str, usize)> = per_country.iter().map(|(c, n)| (*c, *n)).collect();
     counts.sort_unstable();
-    let total: f64 = counts
-        .iter()
-        .map(|&(_, n)| (n as f64).powf(exponent))
-        .sum();
+    let total: f64 = counts.iter().map(|&(_, n)| (n as f64).powf(exponent)).sum();
 
     let mut cum = 0.0;
     for (i, name) in names.iter().enumerate() {
