@@ -9,7 +9,6 @@ function roundEmoji(score: number | null): string {
 
 export function dailyShareText(
   date: string,
-  number: number,
   total: number,
   scores: (number | null)[],
   siteUrl: string,
@@ -20,7 +19,7 @@ export function dailyShareText(
     timeZone: 'UTC',
   })
   const squares = scores.map(roundEmoji).join('')
-  return `PinTheCity Daily #${number} · ${day}\n${squares} ${total} / 5000\n${siteUrl}`
+  return `PinTheCity Daily: ${day}\n${squares} ${total} / 5000\n${siteUrl}`
 }
 
 export function freeplayShareText(

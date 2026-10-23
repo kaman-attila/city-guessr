@@ -74,7 +74,6 @@ export default function DailyResults({
         getText={() =>
           dailyShareText(
             date,
-            number,
             total,
             (rounds ?? []).map((r) => r.score),
             window.location.origin,
